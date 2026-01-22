@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Image,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, RAINBOW_COLORS } from '../constants/colors';
@@ -13,6 +14,7 @@ import { SHADOW_ITEMS } from '../constants/activityData';
 import { speakWord, speakCelebration, speakFeedback, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +29,8 @@ export const ShadowMatchScreen: React.FC<ShadowMatchScreenProps> = ({ navigation
   const [options, setOptions] = useState<typeof SHADOW_ITEMS>([]);
   const [score, setScore] = useState(0);
   const [matched, setMatched] = useState(0);
+  
+  const { isLandscape, width: screenWidth } = useResponsiveLayout();
 
   const initGame = useCallback(() => {
     const shuffled = [...SHADOW_ITEMS].sort(() => Math.random() - 0.5);
@@ -78,15 +82,16 @@ export const ShadowMatchScreen: React.FC<ShadowMatchScreenProps> = ({ navigation
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Shadows"
         icon={SCREEN_ICONS.shadowIcon}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
         rightElement={
-          <View style={styles.scoreBox}>
-            <Image source={SCREEN_ICONS.starGold} style={styles.scoreIcon} resizeMode="contain" />
-            <Text style={styles.scoreText}>{score}</Text>
+          <View style={[styles.scoreBox, isLandscape && { paddingHorizontal: 10, paddingVertical: 4 }]}>
+            <Image source={SCREEN_ICONS.starGold} style={[styles.scoreIcon, isLandscape && { width: 16, height: 16 }]} resizeMode="contain" />
+            <Text style={[styles.scoreText, isLandscape && { fontSize: 14 }]}>{score}</Text>
           </View>
         }
       />
@@ -96,30 +101,68 @@ export const ShadowMatchScreen: React.FC<ShadowMatchScreenProps> = ({ navigation
       </Text>
 
       {currentShadow ? (
-        <>
-          {/* Shadow Display */}
-          <View style={styles.shadowContainer}>
-            <Text style={styles.instruction}>What object makes this shadow?</Text>
-            <View style={styles.shadowBox}>
-              <Text style={styles.shadowEmoji}>{currentShadow.emoji}</Text>
-              <View style={styles.shadowOverlay} />
+        isLandscape ? (
+          // LANDSCAPE LAYOUT - Two panel
+          <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: 20 }}>
+            {/* Left Panel - Shadow */}
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={[styles.instruction, { fontSize: 16, marginBottom: 15 }]}>What object makes this shadow?</Text>
+              <View style={[styles.shadowBox, { width: 120, height: 120 }]}>
+                <Text style={[styles.shadowEmoji, { fontSize: 60 }]}>{currentShadow.emoji}</Text>
+                <View style={styles.shadowOverlay} />
+              </View>
+            </View>
+
+            {/* Right Panel - Options 2x2 Grid */}
+            <View style={{ flex: 1.5, justifyContent: 'center' }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+                {options.map((opt, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.optionButton, 
+                      { 
+                        backgroundColor: RAINBOW_COLORS[index],
+                        width: (screenWidth * 0.55 - 50) / 2,
+                        paddingVertical: 15,
+                      }
+                    ]}
+                    onPress={() => handleAnswer(opt)}
+                  >
+                    <Text style={[styles.optionEmoji, { fontSize: 32 }]}>{opt.emoji}</Text>
+                    <Text style={[styles.optionName, { fontSize: 12, marginTop: 4 }]}>{opt.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </View>
+        ) : (
+          // PORTRAIT LAYOUT
+          <>
+            {/* Shadow Display */}
+            <View style={styles.shadowContainer}>
+              <Text style={styles.instruction}>What object makes this shadow?</Text>
+              <View style={styles.shadowBox}>
+                <Text style={styles.shadowEmoji}>{currentShadow.emoji}</Text>
+                <View style={styles.shadowOverlay} />
+              </View>
+            </View>
 
-          {/* Options */}
-          <View style={styles.optionsGrid}>
-            {options.map((opt, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.optionButton, { backgroundColor: RAINBOW_COLORS[index] }]}
-                onPress={() => handleAnswer(opt)}
-              >
-                <Text style={styles.optionEmoji}>{opt.emoji}</Text>
-                <Text style={styles.optionName}>{opt.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
+            {/* Options */}
+            <View style={styles.optionsGrid}>
+              {options.map((opt, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.optionButton, { backgroundColor: RAINBOW_COLORS[index] }]}
+                  onPress={() => handleAnswer(opt)}
+                >
+                  <Text style={styles.optionEmoji}>{opt.emoji}</Text>
+                  <Text style={styles.optionName}>{opt.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )
       ) : (
         <View style={styles.completeContainer}>
           <Text style={styles.completeEmoji}>🎉💡🧠</Text>

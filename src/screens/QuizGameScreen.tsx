@@ -7,6 +7,7 @@ import {
   Dimensions,
   Animated,
   Image,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, RAINBOW_COLORS } from '../constants/colors';
@@ -16,6 +17,7 @@ import { speakWord, speakCelebration, speakFeedback, stopSpeaking } from '../uti
 import { switchBackgroundMusic } from '../utils/backgroundMusic';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +40,8 @@ export const QuizGameScreen: React.FC<QuizGameScreenProps> = ({ navigation }) =>
   const [streak, setStreak] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const feedbackAnim = useState(new Animated.Value(0))[0];
+  
+  const { isLandscape, width: screenWidth } = useResponsiveLayout();
 
   const generateQuestion = useCallback(() => {
     let data: { name: string; emoji: string }[];
@@ -188,103 +192,122 @@ export const QuizGameScreen: React.FC<QuizGameScreenProps> = ({ navigation }) =>
     { id: 'number', icon: SCREEN_ICONS.numbers123 },
   ];
 
+  const optionSize = isLandscape ? 60 : 80;
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isLandscape && { marginBottom: -5 }]}>
         <ScreenHeader
           title="Quiz"
           icon={SCREEN_ICONS.question}
           onBack={() => { stopSpeaking(); navigation.goBack(); }}
+          compact={isLandscape}
           rightElement={
-            <View style={styles.scoreBox}>
-              <Image source={SCREEN_ICONS.starGold} style={styles.scoreIcon} resizeMode="contain" />
-              <Text style={styles.scoreText}>{score}</Text>
+            <View style={[styles.scoreBox, isLandscape && { paddingHorizontal: 10, paddingVertical: 4 }]}>
+              <Image source={SCREEN_ICONS.starGold} style={[styles.scoreIcon, isLandscape && { width: 16, height: 16 }]} resizeMode="contain" />
+              <Text style={[styles.scoreText, isLandscape && { fontSize: 14 }]}>{score}</Text>
             </View>
           }
         />
       </View>
 
-      {/* Category Selection */}
-      <View style={styles.categoryRow}>
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat.id}
-            style={[styles.categoryButton, category === cat.id && styles.categoryActive]}
-            onPress={() => { setCategory(cat.id); setStreak(0); }}
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, isLandscape && { paddingVertical: 5 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Category Selection */}
+        <View style={[styles.categoryRow, isLandscape && { marginBottom: 8 }]}>
+          {categories.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={[
+                styles.categoryButton, 
+                category === cat.id && styles.categoryActive,
+                isLandscape && { width: 40, height: 40, borderRadius: 10 }
+              ]}
+              onPress={() => { setCategory(cat.id); setStreak(0); }}
+            >
+              <Image 
+                source={cat.icon} 
+                style={[
+                  styles.categoryIcon, 
+                  category === cat.id && styles.categoryIconActive,
+                  isLandscape && { width: 20, height: 20 }
+                ]} 
+                resizeMode="contain" 
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Streak Display */}
+        {streak > 0 && (
+          <View style={[styles.streakBox, isLandscape && { paddingVertical: 4, paddingHorizontal: 12, marginBottom: 8 }]}>
+            <Image source={SCREEN_ICONS.lightning} style={[styles.streakIcon, isLandscape && { width: 16, height: 16 }]} resizeMode="contain" />
+            <Text style={[styles.streakText, isLandscape && { fontSize: 12 }]}>{streak} in a row!</Text>
+          </View>
+        )}
+
+        {/* Question */}
+        {question && (
+          <>
+            <View style={[styles.questionContainer, isLandscape && { paddingVertical: 12, marginBottom: 10 }]}>
+              <Text style={[styles.questionText, isLandscape && { fontSize: 14 }]}>{question.text}</Text>
+              <Text style={[styles.questionEmoji, isLandscape && { fontSize: 40 }]}>{question.emoji}</Text>
+            </View>
+
+            {/* Options */}
+            <View style={[styles.optionsGrid, isLandscape && { gap: 8 }]}>
+              {question.options.map((option, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => !feedback && handleAnswer(option)}
+                  style={[
+                    styles.optionButton,
+                    { backgroundColor: RAINBOW_COLORS[index], width: optionSize, height: optionSize },
+                    isLandscape && { borderRadius: 12 },
+                    feedback === 'correct' && option === question.correct && styles.correctOption,
+                    feedback === 'wrong' && option === question.correct && styles.showCorrectOption,
+                  ]}
+                >
+                  <Text style={[styles.optionText, isLandscape && { fontSize: 20 }]}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Feedback */}
+        {feedback && (
+          <Animated.View
+            style={[
+              styles.feedbackContainer,
+              {
+                opacity: feedbackAnim,
+                transform: [{ scale: feedbackAnim }],
+              },
+              isLandscape && { marginTop: 10 }
+            ]}
           >
             <Image 
-              source={cat.icon} 
-              style={[styles.categoryIcon, category === cat.id && styles.categoryIconActive]} 
+              source={feedback === 'correct' ? SCREEN_ICONS.celebration : SCREEN_ICONS.wrong} 
+              style={[styles.feedbackImage, isLandscape && { width: 50, height: 50 }]} 
               resizeMode="contain" 
             />
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Streak Display */}
-      {streak > 0 && (
-        <View style={styles.streakBox}>
-          <Image source={SCREEN_ICONS.lightning} style={styles.streakIcon} resizeMode="contain" />
-          <Text style={styles.streakText}>{streak} in a row!</Text>
-        </View>
-      )}
-
-      {/* Question */}
-      {question && (
-        <>
-          <View style={styles.questionContainer}>
-            <Text style={styles.questionText}>{question.text}</Text>
-            <Text style={styles.questionEmoji}>{question.emoji}</Text>
-          </View>
-
-          {/* Options */}
-          <View style={styles.optionsGrid}>
-            {question.options.map((option, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={() => !feedback && handleAnswer(option)}
-                style={[
-                  styles.optionButton,
-                  { backgroundColor: RAINBOW_COLORS[index] },
-                  feedback === 'correct' && option === question.correct && styles.correctOption,
-                  feedback === 'wrong' && option === question.correct && styles.showCorrectOption,
-                ]}
-              >
-                <Text style={styles.optionText}>{option}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* Feedback */}
-      {feedback && (
-        <Animated.View
-          style={[
-            styles.feedbackContainer,
-            {
-              opacity: feedbackAnim,
-              transform: [{ scale: feedbackAnim }],
-            },
-          ]}
-        >
-          <Image 
-            source={feedback === 'correct' ? SCREEN_ICONS.celebration : SCREEN_ICONS.wrong} 
-            style={styles.feedbackImage} 
-            resizeMode="contain" 
-          />
-          <Text style={[styles.feedbackText, { color: feedback === 'correct' ? COLORS.green : COLORS.red }]}>
-            {feedback === 'correct' ? 'Correct!' : `It's ${question?.correct}!`}
-          </Text>
-        </Animated.View>
-      )}
+            <Text style={[styles.feedbackText, { color: feedback === 'correct' ? COLORS.green : COLORS.red }, isLandscape && { fontSize: 16 }]}>
+              {feedback === 'correct' ? 'Correct!' : `It's ${question?.correct}!`}
+            </Text>
+          </Animated.View>
+        )}
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E6F0FF' },
+  scrollContent: { paddingBottom: 20, alignItems: 'center' },
   header: { marginBottom: -10 },
   scoreBox: {
     backgroundColor: COLORS.yellow,

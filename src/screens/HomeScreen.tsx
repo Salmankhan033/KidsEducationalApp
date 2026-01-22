@@ -25,8 +25,6 @@ import {
   ensureMusicPlaying,
 } from '../utils/backgroundMusic';
 
-const { width, height } = Dimensions.get('window');
-
 // Decorative background images - reliable CDN images
 const BG_IMAGES = {
   sun: { uri: 'https://cdn-icons-png.flaticon.com/512/869/869869.png' },
@@ -51,9 +49,6 @@ const BG_IMAGES = {
   dragonfly: { uri: 'https://cdn-icons-png.flaticon.com/512/809/809053.png' },
 };
 
-// Card border colors
-const CARD_BORDER_COLORS = ['#FF6B6B', '#27AE60', '#3498DB', '#9B59B6', '#F39C12'];
-
 // Large Learning Card Component - Kid-friendly design
 interface LearningCardProps {
   title: string;
@@ -64,6 +59,8 @@ interface LearningCardProps {
   onPress: () => void;
   delay: number;
   emoji: string;
+  isLandscape: boolean;
+  cardWidth: number;
 }
 
 const LearningCard: React.FC<LearningCardProps> = ({
@@ -75,6 +72,8 @@ const LearningCard: React.FC<LearningCardProps> = ({
   onPress,
   delay,
   emoji,
+  isLandscape,
+  cardWidth,
 }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
@@ -90,7 +89,6 @@ const LearningCard: React.FC<LearningCardProps> = ({
       }),
     ]).start();
 
-    // Continuous subtle bounce animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(bounceAnim, {
@@ -109,42 +107,48 @@ const LearningCard: React.FC<LearningCardProps> = ({
 
   const translateY = bounceAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -8],
+    outputRange: [0, -6],
   });
+
+  const imageSize = isLandscape ? 70 : 90;
 
   return (
     <Animated.View
       style={[
         styles.learningCard,
-        {
-          transform: [{ scale: scaleAnim }],
-        },
+        { width: cardWidth, transform: [{ scale: scaleAnim }] },
       ]}
     >
       <TouchableOpacity
         onPress={onPress}
-        style={[styles.learningCardTouchable, { backgroundColor, borderColor }]}
+        style={[
+          styles.learningCardTouchable,
+          { backgroundColor, borderColor },
+          isLandscape && styles.learningCardTouchableLandscape,
+        ]}
         activeOpacity={0.85}
       >
-        {/* Emoji Badge - Top Right */}
-        <View style={[styles.emojiBadge, { backgroundColor: borderColor }]}>
-          <Text style={styles.emojiText}>{emoji}</Text>
+        <View style={[styles.emojiBadge, { backgroundColor: borderColor }, isLandscape && styles.emojiBadgeLandscape]}>
+          <Text style={[styles.emojiText, isLandscape && styles.emojiTextLandscape]}>{emoji}</Text>
         </View>
 
-        {/* Main Image - Large */}
         <Animated.View
           style={[
             styles.learningImageContainer,
-            { transform: [{ translateY }] },
+            { 
+              transform: [{ translateY }],
+              width: imageSize,
+              height: imageSize,
+              borderRadius: isLandscape ? 18 : 25,
+            },
           ]}
         >
-          <Image source={image} style={styles.learningImage} resizeMode="contain" />
+          <Image source={image} style={{ width: imageSize - 20, height: imageSize - 20 }} resizeMode="contain" />
         </Animated.View>
 
-        {/* Title Section - Smaller Text */}
         <View style={styles.learningTextContainer}>
-          <Text style={styles.learningTitle}>{title}</Text>
-          <Text style={styles.learningSubtitle}>{subtitle}</Text>
+          <Text style={[styles.learningTitle, isLandscape && styles.learningTitleLandscape]}>{title}</Text>
+          <Text style={[styles.learningSubtitle, isLandscape && styles.learningSubtitleLandscape]}>{subtitle}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -160,16 +164,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const titleAnim = useRef(new Animated.Value(0)).current;
   const { gender, isFirstLaunch, childImages, theme } = useGender();
   const [showGenderModal, setShowGenderModal] = useState(false);
-
-  // Background music - plays continuously and loops forever
+  
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+  
   useEffect(() => {
-    // Small delay to ensure TTS is initialized first
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  const isLandscape = dimensions.width > dimensions.height;
+  const screenWidth = dimensions.width;
+  const screenHeight = dimensions.height;
+
+  // Calculate card width based on orientation
+  const cardWidth = isLandscape 
+    ? (screenWidth - insets.left - insets.right - 60) / 5  // 5 cards in landscape
+    : (screenWidth - 45) / 2;  // 2 cards in portrait
+
+  // Background music
+  useEffect(() => {
     const musicTimer = setTimeout(() => {
-      // Start/switch to home music (ABC Song) when HomeScreen mounts
       startBackgroundMusic('home');
     }, 500);
 
-    // Handle app state changes (pause when app goes to background)
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
         resumeBackgroundMusic();
@@ -180,19 +199,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
-    // Cleanup: only remove listener, don't stop music (let it play continuously across screens)
     return () => {
       clearTimeout(musicTimer);
       subscription.remove();
-      // Note: Music continues playing when navigating to other screens
     };
   }, []);
 
-  // When returning to HomeScreen, ensure home music is playing
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       switchBackgroundMusic('home');
-      // Also ensure music is actually playing
       setTimeout(() => {
         ensureMusicPlaying();
       }, 500);
@@ -209,10 +224,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }).start();
   }, [titleAnim]);
 
-  // Show gender selection modal on first launch
   useEffect(() => {
     if (isFirstLaunch) {
-      // Delay showing modal slightly for smooth entrance
       const timer = setTimeout(() => {
         setShowGenderModal(true);
       }, 500);
@@ -220,7 +233,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, [isFirstLaunch]);
 
-  // Learning Categories - Enhanced with more details
   const learningCategories = [
     {
       title: 'Learn ABC',
@@ -269,44 +281,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     },
   ];
 
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* Beautiful Kid-Friendly Background */}
-      <View style={styles.skyBackground}>
-        <Image source={BG_IMAGES.sun} style={styles.bgSun} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud1} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud2} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud3} />
-        <Image source={BG_IMAGES.rainbow} style={styles.bgRainbow} />
-        <Image source={BG_IMAGES.star} style={styles.bgStar1} />
-        <Image source={BG_IMAGES.star} style={styles.bgStar2} />
-        <Image source={BG_IMAGES.sparkle} style={styles.bgSparkle1} />
-        <Image source={BG_IMAGES.sparkle} style={styles.bgSparkle2} />
-        <Image source={BG_IMAGES.bird} style={styles.bgBird1} />
-        <Image source={BG_IMAGES.bird} style={styles.bgBird2} />
-        <Image source={BG_IMAGES.butterfly} style={styles.bgButterfly} />
-        <Image source={BG_IMAGES.hotAirBalloon} style={styles.bgHotAirBalloon} />
-        <Image source={BG_IMAGES.kite} style={styles.bgKite} />
-        <Image source={BG_IMAGES.dragonfly} style={styles.bgDragonfly} />
+      {/* Sky Background */}
+      <View style={[styles.skyBackground, { height: screenHeight * 0.75 }]}>
+        <Image source={BG_IMAGES.sun} style={[styles.bgElement, { top: 20, right: 20, width: 40, height: 40 }]} />
+        <Image source={BG_IMAGES.cloud} style={[styles.bgElement, { top: 40, left: 20, width: 30, height: 22 }]} />
+        <Image source={BG_IMAGES.cloud} style={[styles.bgElement, { top: 60, right: 100, width: 28, height: 20 }]} />
+        <Image source={BG_IMAGES.rainbow} style={[styles.bgElement, { top: 30, left: '30%', width: 35, height: 25 }]} />
+        <Image source={BG_IMAGES.bird} style={[styles.bgElement, { top: 50, left: '55%', width: 20, height: 20 }]} />
+        <Image source={BG_IMAGES.butterfly} style={[styles.bgElement, { top: 80, left: '20%', width: 18, height: 18 }]} />
+        <Image source={BG_IMAGES.hotAirBalloon} style={[styles.bgElement, { top: 25, left: '45%', width: 28, height: 28 }]} />
+        <Image source={BG_IMAGES.kite} style={[styles.bgElement, { top: 70, right: 40, width: 22, height: 22 }]} />
       </View>
 
-      {/* Grass with flowers and creatures */}
-      <View style={styles.grassBackground}>
-        <Image source={BG_IMAGES.tree} style={styles.bgTree1} />
-        <Image source={BG_IMAGES.tree} style={styles.bgTree2} />
-        <Image source={BG_IMAGES.flower} style={styles.bgFlower1} />
-        <Image source={BG_IMAGES.tulip} style={styles.bgFlower2} />
-        <Image source={BG_IMAGES.flower} style={styles.bgFlower3} />
-        <Image source={BG_IMAGES.tulip} style={styles.bgFlower4} />
-        <Image source={BG_IMAGES.bee} style={styles.bgBee} />
-        <Image source={BG_IMAGES.ladybug} style={styles.bgLadybug} />
-        <Image source={BG_IMAGES.mushroom} style={styles.bgMushroom1} />
-        <Image source={BG_IMAGES.mushroom} style={styles.bgMushroom2} />
-        <Image source={BG_IMAGES.caterpillar} style={styles.bgCaterpillar} />
-        <Image source={BG_IMAGES.snail} style={styles.bgSnail} />
+      {/* Grass Background */}
+      <View style={[styles.grassBackground, { height: screenHeight * 0.3 }]}>
+        <Image source={BG_IMAGES.tree} style={[styles.bgElement, { bottom: '40%', left: 10, width: 35, height: 40 }]} />
+        <Image source={BG_IMAGES.tree} style={[styles.bgElement, { bottom: '45%', right: 15, width: 30, height: 35 }]} />
+        <Image source={BG_IMAGES.flower} style={[styles.bgElement, { bottom: '20%', left: 60, width: 18, height: 18 }]} />
+        <Image source={BG_IMAGES.tulip} style={[styles.bgElement, { bottom: '25%', right: 50, width: 16, height: 16 }]} />
+        <Image source={BG_IMAGES.bee} style={[styles.bgElement, { bottom: '55%', left: '40%', width: 18, height: 18 }]} />
+        <Image source={BG_IMAGES.ladybug} style={[styles.bgElement, { bottom: '30%', right: '20%', width: 16, height: 16 }]} />
       </View>
       
       {/* Gender Selection Modal */}
@@ -315,99 +313,122 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         onClose={() => setShowGenderModal(false)}
       />
 
-      {/* Mute Button - Top Right */}
-      <MuteButton style={{ position: 'absolute', right: 15, top: insets.top + 15, zIndex: 100 }} size="medium" />
+      {/* Mute Button */}
+      <MuteButton 
+        style={{ 
+          position: 'absolute', 
+          right: insets.right + 15, 
+          top: insets.top + 10, 
+          zIndex: 100 
+        }} 
+        size="medium" 
+      />
 
-      {/* Header */}
-      <View style={[styles.header, { marginTop: insets.top + 10 }]}>
-        <Animated.View style={[styles.headerContent, { transform: [{ scale: titleAnim }] }]}>
-          {/* Child Avatar based on gender */}
+      {/* Main Content */}
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { 
+            paddingLeft: insets.left + 15, 
+            paddingRight: insets.right + 15,
+            paddingTop: insets.top + 10,
+          },
+          isLandscape && styles.scrollContentLandscape,
+        ]}
+        showsVerticalScrollIndicator={false}
+        horizontal={false}
+      >
+        {/* Header */}
+        <Animated.View style={[
+          styles.header, 
+          { transform: [{ scale: titleAnim }] },
+          isLandscape && styles.headerLandscape,
+        ]}>
           {childImages ? (
-            <View style={[styles.childAvatarContainer, { borderColor: theme.primary }]}>
+            <View style={[
+              styles.childAvatarContainer, 
+              { borderColor: theme.primary },
+              isLandscape && styles.childAvatarContainerLandscape,
+            ]}>
               <Image
                 source={childImages.avatar}
-                style={styles.childAvatar}
+                style={[styles.childAvatar, isLandscape && styles.childAvatarLandscape]}
                 resizeMode="cover"
               />
             </View>
           ) : (
-            <Text style={styles.headerEmoji}>🌟</Text>
+            <Text style={[styles.headerEmoji, isLandscape && styles.headerEmojiLandscape]}>🌟</Text>
           )}
           <View style={styles.titleContainer}>
-            <Text style={[styles.title, gender && { color: theme.primary }]}>
+            <Text style={[styles.title, gender && { color: theme.primary }, isLandscape && styles.titleLandscape]}>
               {theme.title}
             </Text>
-            <Text style={styles.titleSubtext}>
+            <Text style={[styles.titleSubtext, isLandscape && styles.titleSubtextLandscape]}>
               Let's explore together! {theme.emoji}
             </Text>
           </View>
-          <Text style={styles.headerEmoji}>{gender === 'male' ? '🚀' : gender === 'female' ? '🌸' : '🌈'}</Text>
+          <Text style={[styles.headerEmoji, isLandscape && styles.headerEmojiLandscape]}>
+            {gender === 'male' ? '🚀' : gender === 'female' ? '🌸' : '🌈'}
+          </Text>
         </Animated.View>
-      </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Daily Challenge Banner - Enhanced */}
+        {/* Daily Challenge Banner */}
         <TouchableOpacity 
-          style={styles.dailyBanner}
+          style={[styles.dailyBanner, isLandscape && styles.dailyBannerLandscape]}
           onPress={() => navigation.navigate('DailyChallenge')}
           activeOpacity={0.9}
         >
           <View style={styles.dailyBannerGlow} />
-          <Image source={MENU_IMAGES.trophy} style={styles.dailyImage} resizeMode="contain" />
+          <Image source={MENU_IMAGES.trophy} style={[styles.dailyImage, isLandscape && styles.dailyImageLandscape]} resizeMode="contain" />
           <View style={styles.dailyText}>
-            <Text style={styles.dailyTitle}>🏆 Daily Challenge!</Text>
-            <Text style={styles.dailySubtitle}>Complete & collect stickers! →</Text>
+            <Text style={[styles.dailyTitle, isLandscape && styles.dailyTitleLandscape]}>🏆 Daily Challenge!</Text>
+            <Text style={[styles.dailySubtitle, isLandscape && styles.dailySubtitleLandscape]}>Complete & collect stickers! →</Text>
           </View>
-          <Text style={styles.dailyEmoji}>🎁</Text>
+          <Text style={[styles.dailyEmoji, isLandscape && styles.dailyEmojiLandscape]}>🎁</Text>
         </TouchableOpacity>
 
-        {/* Instruction Box */}
-        <View style={styles.instructionBox}>
-          <Text style={styles.instructionText}>✨ Tap to start your learning journey! ✨</Text>
+        {/* Learning Section */}
+        <View style={[styles.learningGrid, isLandscape && styles.learningGridLandscape]}>
+          {learningCategories.map((item, index) => (
+            <LearningCard
+              key={item.title}
+              title={item.title}
+              subtitle={item.subtitle}
+              image={item.image}
+              backgroundColor={item.backgroundColor}
+              borderColor={item.borderColor}
+              emoji={item.emoji}
+              delay={index * 60}
+              onPress={() => navigation.navigate(item.screen)}
+              isLandscape={isLandscape}
+              cardWidth={cardWidth}
+            />
+          ))}
         </View>
 
-        {/* Learning Section - Grid Layout like AlphabetsScreen */}
-        <View style={styles.section}>
-          <View style={styles.learningGrid}>
-            {learningCategories.map((item, index) => (
-              <LearningCard
-                key={item.title}
-                title={item.title}
-                subtitle={item.subtitle}
-                image={item.image}
-                backgroundColor={item.backgroundColor}
-                borderColor={item.borderColor}
-                emoji={item.emoji}
-                delay={index * 80}
-                onPress={() => navigation.navigate(item.screen)}
-              />
-            ))}
-          </View>
-        </View>
+        {/* Bottom Section - Hidden in landscape for more space */}
+        {!isLandscape && (
+          <>
+            <View style={styles.charactersRow}>
+              <Image source={MENU_IMAGES.bear} style={styles.characterImage} resizeMode="contain" />
+              <Image source={MENU_IMAGES.butterfly} style={styles.characterImage} resizeMode="contain" />
+              <Image source={MENU_IMAGES.star} style={styles.characterImage} resizeMode="contain" />
+              <Image source={MENU_IMAGES.balloon} style={styles.characterImage} resizeMode="contain" />
+              <Image source={MENU_IMAGES.unicorn} style={styles.characterImage} resizeMode="contain" />
+            </View>
 
-        {/* Fun Characters */}
-        <View style={styles.charactersRow}>
-          <Image source={MENU_IMAGES.bear} style={styles.characterImage} resizeMode="contain" />
-          <Image source={MENU_IMAGES.butterfly} style={styles.characterImage} resizeMode="contain" />
-          <Image source={MENU_IMAGES.star} style={styles.characterImage} resizeMode="contain" />
-          <Image source={MENU_IMAGES.balloon} style={styles.characterImage} resizeMode="contain" />
-          <Image source={MENU_IMAGES.unicorn} style={styles.characterImage} resizeMode="contain" />
-        </View>
-
-        {/* Bottom Fun Section */}
-        <View style={styles.bottomSection}>
-          <Text style={styles.bottomText}>🌟 Keep Learning, Keep Growing! 🌟</Text>
-          <View style={styles.bottomEmojis}>
-            <Text style={styles.bottomEmoji}>🎈</Text>
-            <Text style={styles.bottomEmoji}>🎪</Text>
-            <Text style={styles.bottomEmoji}>🎠</Text>
-            <Text style={styles.bottomEmoji}>🎡</Text>
-            <Text style={styles.bottomEmoji}>🎢</Text>
-          </View>
-        </View>
+            <View style={styles.bottomSection}>
+              <Text style={styles.bottomText}>🌟 Keep Learning, Keep Growing! 🌟</Text>
+              <View style={styles.bottomEmojis}>
+                <Text style={styles.bottomEmoji}>🎈</Text>
+                <Text style={styles.bottomEmoji}>🎪</Text>
+                <Text style={styles.bottomEmoji}>🎠</Text>
+                <Text style={styles.bottomEmoji}>🎡</Text>
+                <Text style={styles.bottomEmoji}>🎢</Text>
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -418,268 +439,65 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#87CEEB',
   },
-  // Sky Background
   skyBackground: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: height * 0.75,
     backgroundColor: '#87CEEB',
   },
-  bgSun: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    width: 45,
-    height: 45,
-    opacity: 0.9,
-  },
-  bgCloud1: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    width: 35,
-    height: 25,
-    opacity: 0.7,
-  },
-  bgCloud2: {
-    position: 'absolute',
-    top: 100,
-    right: 80,
-    width: 30,
-    height: 22,
-    opacity: 0.65,
-  },
-  bgCloud3: {
-    position: 'absolute',
-    top: 140,
-    left: width * 0.4,
-    width: 32,
-    height: 24,
-    opacity: 0.7,
-  },
-  bgRainbow: {
-    position: 'absolute',
-    top: 80,
-    left: width * 0.28,
-    width: 40,
-    height: 28,
-    opacity: 0.7,
-  },
-  bgStar1: {
-    position: 'absolute',
-    top: 180,
-    left: 30,
-    width: 18,
-    height: 18,
-    opacity: 0.6,
-  },
-  bgStar2: {
-    position: 'absolute',
-    top: 200,
-    right: 40,
-    width: 14,
-    height: 14,
-    opacity: 0.5,
-  },
-  bgSparkle1: {
-    position: 'absolute',
-    top: 120,
-    left: 80,
-    width: 16,
-    height: 16,
-    opacity: 0.55,
-  },
-  bgSparkle2: {
-    position: 'absolute',
-    top: 160,
-    right: 60,
-    width: 14,
-    height: 14,
-    opacity: 0.45,
-  },
-  bgBird1: {
-    position: 'absolute',
-    top: 100,
-    left: width * 0.6,
-    width: 22,
-    height: 22,
-    opacity: 0.75,
-  },
-  bgBird2: {
-    position: 'absolute',
-    top: 130,
-    left: width * 0.72,
-    width: 18,
-    height: 18,
-    opacity: 0.65,
-    transform: [{ scaleX: -1 }],
-  },
-  bgButterfly: {
-    position: 'absolute',
-    top: 175,
-    left: width * 0.18,
-    width: 20,
-    height: 20,
-    opacity: 0.7,
-  },
-  bgHotAirBalloon: {
-    position: 'absolute',
-    top: 65,
-    left: width * 0.48,
-    width: 32,
-    height: 32,
-    opacity: 0.75,
-  },
-  bgKite: {
-    position: 'absolute',
-    top: 145,
-    right: 30,
-    width: 24,
-    height: 24,
-    opacity: 0.7,
-  },
-  bgDragonfly: {
-    position: 'absolute',
-    top: 195,
-    left: width * 0.58,
-    width: 18,
-    height: 18,
-    opacity: 0.65,
-  },
-  // Grass Background
   grassBackground: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: height * 0.35,
     backgroundColor: '#7CCD7C',
-    borderTopLeftRadius: 100,
-    borderTopRightRadius: 100,
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
   },
-  bgTree1: {
+  bgElement: {
     position: 'absolute',
-    bottom: height * 0.15,
-    left: 10,
-    width: 40,
-    height: 45,
-    opacity: 0.85,
-  },
-  bgTree2: {
-    position: 'absolute',
-    bottom: height * 0.17,
-    right: 15,
-    width: 35,
-    height: 40,
-    opacity: 0.8,
-  },
-  bgFlower1: {
-    position: 'absolute',
-    bottom: height * 0.08,
-    left: 60,
-    width: 20,
-    height: 20,
-    opacity: 0.85,
-  },
-  bgFlower2: {
-    position: 'absolute',
-    bottom: height * 0.1,
-    left: width * 0.3,
-    width: 18,
-    height: 18,
-    opacity: 0.8,
-  },
-  bgFlower3: {
-    position: 'absolute',
-    bottom: height * 0.07,
-    right: width * 0.3,
-    width: 18,
-    height: 18,
-    opacity: 0.85,
-  },
-  bgFlower4: {
-    position: 'absolute',
-    bottom: height * 0.09,
-    right: 50,
-    width: 18,
-    height: 18,
-    opacity: 0.8,
-  },
-  bgBee: {
-    position: 'absolute',
-    bottom: height * 0.2,
-    left: width * 0.4,
-    width: 22,
-    height: 22,
-    opacity: 0.85,
-  },
-  bgLadybug: {
-    position: 'absolute',
-    bottom: height * 0.13,
-    right: width * 0.18,
-    width: 18,
-    height: 18,
-    opacity: 0.8,
-  },
-  bgMushroom1: {
-    position: 'absolute',
-    bottom: height * 0.06,
-    left: width * 0.18,
-    width: 18,
-    height: 18,
-    opacity: 0.8,
-  },
-  bgMushroom2: {
-    position: 'absolute',
-    bottom: height * 0.05,
-    right: width * 0.22,
-    width: 15,
-    height: 15,
     opacity: 0.75,
   },
-  bgCaterpillar: {
-    position: 'absolute',
-    bottom: height * 0.08,
-    left: width * 0.48,
-    width: 20,
-    height: 20,
-    opacity: 0.8,
+  scrollContent: {
+    paddingBottom: 30,
   },
-  bgSnail: {
-    position: 'absolute',
-    bottom: height * 0.11,
-    right: width * 0.38,
-    width: 18,
-    height: 18,
-    opacity: 0.75,
+  scrollContentLandscape: {
+    paddingBottom: 15,
   },
   // Header
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    marginHorizontal: 15,
     borderRadius: 20,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
   },
+  headerLandscape: {
+    paddingVertical: 8,
+    marginBottom: 8,
+    alignSelf: 'center',
+    width: '60%',
+  },
   headerEmoji: {
-    fontSize: 28,
+    fontSize: 26,
+  },
+  headerEmojiLandscape: {
+    fontSize: 22,
   },
   childAvatarContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -691,21 +509,35 @@ const styles = StyleSheet.create({
     elevation: 4,
     overflow: 'hidden',
   },
+  childAvatarContainerLandscape: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+  },
   childAvatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+  childAvatarLandscape: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   titleContainer: {
     alignItems: 'center',
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
     color: '#9B59B6',
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
+  },
+  titleLandscape: {
+    fontSize: 15,
   },
   titleSubtext: {
     fontSize: 10,
@@ -713,19 +545,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 1,
   },
-  scrollContent: {
-    paddingHorizontal: 15,
-    paddingBottom: 40,
-    paddingTop: 15,
+  titleSubtextLandscape: {
+    fontSize: 9,
   },
   // Daily Banner
   dailyBanner: {
     flexDirection: 'row',
     backgroundColor: '#FFD93D',
-    padding: 18,
-    borderRadius: 25,
+    padding: 14,
+    borderRadius: 20,
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 12,
     shadowColor: '#FFD93D',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -735,6 +565,13 @@ const styles = StyleSheet.create({
     borderColor: '#FFC107',
     position: 'relative',
     overflow: 'hidden',
+  },
+  dailyBannerLandscape: {
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 16,
+    alignSelf: 'center',
+    width: '70%',
   },
   dailyBannerGlow: {
     position: 'absolute',
@@ -746,55 +583,44 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   dailyImage: {
-    width: 55,
-    height: 55,
+    width: 50,
+    height: 50,
+  },
+  dailyImageLandscape: {
+    width: 40,
+    height: 40,
   },
   dailyText: { marginLeft: 12, flex: 1 },
-  dailyTitle: { fontSize: 14, fontWeight: '800', color: '#333' },
+  dailyTitle: { fontSize: 13, fontWeight: '800', color: '#333' },
+  dailyTitleLandscape: { fontSize: 12 },
   dailySubtitle: { fontSize: 10, color: '#555', marginTop: 2 },
+  dailySubtitleLandscape: { fontSize: 9 },
   dailyEmoji: {
-    fontSize: 35,
+    fontSize: 32,
   },
-  // Instruction Box
-  instructionBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 18,
-    marginBottom: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  dailyEmojiLandscape: {
+    fontSize: 26,
   },
-  instructionText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#9B59B6',
-    textAlign: 'center',
-  },
-  // Section
-  section: {
-    marginBottom: 10,
-  },
+  // Learning Grid
   learningGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
+    gap: 10,
   },
-  // Learning Card - Grid Style like AlphabetsScreen
+  learningGridLandscape: {
+    gap: 8,
+    justifyContent: 'center',
+  },
+  // Learning Card
   learningCard: {
-    width: (width - 45) / 2, // 2 cards per row with spacing
     marginBottom: 5,
   },
   learningCardTouchable: {
-    borderRadius: 22,
-    borderWidth: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 3,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     alignItems: 'center',
     position: 'relative',
     shadowColor: '#000',
@@ -803,10 +629,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  learningCardTouchableLandscape: {
+    borderRadius: 16,
+    borderWidth: 2,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
   learningImageContainer: {
-    width: 110,
-    height: 110,
-    borderRadius: 25,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -815,20 +644,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  learningImage: {
-    width: 90,
-    height: 90,
+    marginTop: 6,
+    marginBottom: 6,
   },
   emojiBadge: {
     position: 'absolute',
-    top: -12,
-    right: 10,
-    borderRadius: 18,
-    width: 36,
-    height: 36,
+    top: -10,
+    right: 8,
+    borderRadius: 16,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -839,8 +664,18 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.8)',
   },
+  emojiBadgeLandscape: {
+    top: -8,
+    right: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
   emojiText: {
-    fontSize: 18,
+    fontSize: 16,
+  },
+  emojiTextLandscape: {
+    fontSize: 13,
   },
   learningTextContainer: {
     alignItems: 'center',
@@ -851,11 +686,17 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
+  learningTitleLandscape: {
+    fontSize: 10,
+  },
   learningSubtitle: {
     fontSize: 9,
     color: '#666',
     marginTop: 1,
     fontWeight: '600',
+  },
+  learningSubtitleLandscape: {
+    fontSize: 8,
   },
   // Characters Row
   charactersRow: {
@@ -869,13 +710,13 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   characterImage: {
-    width: 50,
-    height: 50,
+    width: 45,
+    height: 45,
   },
   // Bottom Section
   bottomSection: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 18,
     marginTop: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
     borderRadius: 25,
@@ -891,6 +732,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   bottomEmoji: {
-    fontSize: 38,
+    fontSize: 35,
   },
 });

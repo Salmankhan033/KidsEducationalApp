@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Dimensions,
   Animated,
   TouchableOpacity,
   Image,
@@ -16,8 +15,7 @@ import { FloatingBubbles } from '../components/FloatingBubbles';
 import { MENU_IMAGES } from '../assets/images';
 import { ScreenHeader, MuteButton } from '../components';
 import { switchBackgroundMusic } from '../utils/backgroundMusic';
-
-const { width } = Dimensions.get('window');
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 interface ActivityCardProps {
   title: string;
@@ -26,6 +24,8 @@ interface ActivityCardProps {
   onPress: () => void;
   delay: number;
   emoji: string;
+  cardWidth: number;
+  isLandscape: boolean;
 }
 
 const ActivityCard: React.FC<ActivityCardProps> = ({
@@ -35,6 +35,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   onPress,
   delay,
   emoji,
+  cardWidth,
+  isLandscape,
 }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
@@ -50,7 +52,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       }),
     ]).start();
 
-    // Subtle floating animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(bounceAnim, {
@@ -72,7 +73,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
     outputRange: [0, -3],
   });
 
-  const itemWidth = (width - 50) / 2;
+  const imageSize = isLandscape ? 35 : 45;
+  const containerSize = isLandscape ? 45 : 60;
 
   return (
     <Animated.View
@@ -80,37 +82,39 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         styles.activityCard,
         {
           backgroundColor: color,
-          width: itemWidth,
+          width: cardWidth,
           transform: [{ scale: scaleAnim }],
         },
+        isLandscape && styles.activityCardLandscape,
       ]}
     >
       <TouchableOpacity
         onPress={onPress}
-        style={styles.activityCardTouchable}
+        style={[styles.activityCardTouchable, isLandscape && styles.activityCardTouchableLandscape]}
         activeOpacity={0.85}
       >
-        {/* Emoji Badge */}
-        <View style={styles.emojiBadge}>
-          <Text style={styles.emojiText}>{emoji}</Text>
+        <View style={[styles.emojiBadge, isLandscape && styles.emojiBadgeLandscape]}>
+          <Text style={[styles.emojiText, isLandscape && styles.emojiTextLandscape]}>{emoji}</Text>
         </View>
 
-        {/* Image */}
         <Animated.View
           style={[
             styles.activityImageContainer,
-            { transform: [{ translateY }] },
+            { 
+              transform: [{ translateY }],
+              width: containerSize,
+              height: containerSize,
+              borderRadius: containerSize / 2,
+            },
           ]}
         >
-          <Image source={image} style={styles.activityImage} resizeMode="contain" />
+          <Image source={image} style={{ width: imageSize, height: imageSize }} resizeMode="contain" />
         </Animated.View>
 
-        {/* Title */}
-        <Text style={styles.activityTitle}>{title}</Text>
+        <Text style={[styles.activityTitle, isLandscape && styles.activityTitleLandscape]}>{title}</Text>
 
-        {/* Play indicator */}
-        <View style={styles.playIndicator}>
-          <Text style={styles.playText}>▶ Play</Text>
+        <View style={[styles.playIndicator, isLandscape && styles.playIndicatorLandscape]}>
+          <Text style={[styles.playText, isLandscape && styles.playTextLandscape]}>▶ Play</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -129,6 +133,8 @@ interface CategorySectionProps {
   }>;
   navigation: any;
   startDelay: number;
+  cardWidth: number;
+  isLandscape: boolean;
 }
 
 const CategorySection: React.FC<CategorySectionProps> = ({
@@ -137,13 +143,15 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   activities,
   navigation,
   startDelay,
+  cardWidth,
+  isLandscape,
 }) => {
   return (
-    <View style={styles.categorySection}>
-      <View style={styles.categoryHeader}>
-        <Text style={styles.categoryEmoji}>{emoji}</Text>
-        <Text style={styles.categoryTitle}>{title}</Text>
-        <Text style={styles.categoryEmoji}>{emoji}</Text>
+    <View style={[styles.categorySection, isLandscape && styles.categorySectionLandscape]}>
+      <View style={[styles.categoryHeader, isLandscape && styles.categoryHeaderLandscape]}>
+        <Text style={[styles.categoryEmoji, isLandscape && styles.categoryEmojiLandscape]}>{emoji}</Text>
+        <Text style={[styles.categoryTitle, isLandscape && styles.categoryTitleLandscape]}>{title}</Text>
+        <Text style={[styles.categoryEmoji, isLandscape && styles.categoryEmojiLandscape]}>{emoji}</Text>
       </View>
       <View style={styles.activityGrid}>
         {activities.map((item, index) => (
@@ -153,8 +161,10 @@ const CategorySection: React.FC<CategorySectionProps> = ({
             image={item.image}
             color={item.color}
             emoji={item.emoji}
-            delay={startDelay + index * 50}
+            delay={startDelay + index * 30}
             onPress={() => navigation.navigate(item.screen)}
+            cardWidth={cardWidth}
+            isLandscape={isLandscape}
           />
         ))}
       </View>
@@ -168,13 +178,17 @@ interface FunGamesScreenProps {
 
 export const FunGamesScreen: React.FC<FunGamesScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { width, isLandscape, cardWidth } = useResponsiveLayout();
   const titleAnim = useRef(new Animated.Value(0)).current;
 
-  // Switch to game music when entering fun games
+  // Calculate responsive card width
+  const columns = isLandscape ? 6 : 2;
+  const gap = isLandscape ? 8 : 10;
+  const padding = isLandscape ? 10 : 15;
+  const responsiveCardWidth = cardWidth(columns, gap, padding + insets.left + insets.right);
+
   useEffect(() => {
     switchBackgroundMusic('game');
-    
-    // Switch back to home music when leaving
     return () => {
       switchBackgroundMusic('home');
     };
@@ -209,15 +223,15 @@ export const FunGamesScreen: React.FC<FunGamesScreenProps> = ({ navigation }) =>
   const creativeActivities = [
     { title: 'Coloring', image: MENU_IMAGES.coloring, color: '#FF6B9D', screen: 'Coloring', emoji: '🎨' },
     { title: 'Tracing', image: MENU_IMAGES.tracing, color: '#FFD93D', screen: 'TracingGame', emoji: '✏️' },
-    { title: 'Build', image: MENU_IMAGES.build, color: '#4D96FF', screen: 'BuildGame', emoji: '🏗️' },
-    { title: 'Dress Up', image: MENU_IMAGES.dressUp, color: '#9B59B6', screen: 'DressUp', emoji: '👗' },
+    { title: 'Pop It!', image: MENU_IMAGES.build, color: '#FF6B6B', screen: 'BuildGame', emoji: '🎈' },
+    { title: 'Tap It!', image: MENU_IMAGES.dressUp, color: '#4CAF50', screen: 'DressUp', emoji: '🐱' },
     { title: 'Juice Bar', image: MENU_IMAGES.juiceBar, color: '#FF8E53', screen: 'JuiceMaking', emoji: '🧃' },
     { title: 'Piano', image: MENU_IMAGES.piano, color: '#555', screen: 'PianoGame', emoji: '🎹' },
   ];
 
   // Life Skills
   const lifeSkills = [
-    { title: 'Pet Care', image: MENU_IMAGES.petCare, color: '#FFA94D', screen: 'PetCare', emoji: '🐕' },
+    { title: 'Body Parts', image: MENU_IMAGES.emotions, color: '#FF6B9D', screen: 'BodyParts', emoji: '🧍' },
     { title: 'Clean Room', image: MENU_IMAGES.cleanRoom, color: '#6BCB77', screen: 'CleanRoom', emoji: '🧹' },
     { title: 'Manners', image: MENU_IMAGES.manners, color: '#FF6B9D', screen: 'MannersGame', emoji: '🤝' },
     { title: 'Steps', image: MENU_IMAGES.steps, color: '#4ECDC4', screen: 'StepByStep', emoji: '📝' },
@@ -239,72 +253,91 @@ export const FunGamesScreen: React.FC<FunGamesScreenProps> = ({ navigation }) =>
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <FloatingBubbles />
       
-      {/* Mute Button - Top Right */}
-      <MuteButton style={{ position: 'absolute', right: 15, top: insets.top + 15, zIndex: 100 }} size="medium" />
+      <MuteButton 
+        style={{ 
+          position: 'absolute', 
+          right: insets.right + 15, 
+          top: insets.top + 10, 
+          zIndex: 100 
+        }} 
+        size={isLandscape ? 'small' : 'medium'} 
+      />
       
-      {/* Header */}
       <ScreenHeader
         title="Fun Games"
         icon={MENU_IMAGES.fun}
         onBack={() => navigation.goBack()}
       />
 
-      {/* Sub Header */}
-      <View style={styles.subHeader}>
-        <Text style={styles.subHeaderText}>🎮 Choose a game to play! 🎯</Text>
+      <View style={[styles.subHeader, isLandscape && styles.subHeaderLandscape]}>
+        <Text style={[styles.subHeaderText, isLandscape && styles.subHeaderTextLandscape]}>
+          🎮 Choose a game to play! 🎯
+        </Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { 
+            paddingLeft: insets.left + padding, 
+            paddingRight: insets.right + padding 
+          },
+          isLandscape && styles.scrollContentLandscape,
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Brain Games Section */}
         <CategorySection
           title="Brain Games"
           emoji="🧠"
           activities={brainGames}
           navigation={navigation}
           startDelay={0}
+          cardWidth={responsiveCardWidth}
+          isLandscape={isLandscape}
         />
 
-        {/* Creative Section */}
         <CategorySection
           title="Creative Fun"
           emoji="🎨"
           activities={creativeActivities}
           navigation={navigation}
-          startDelay={300}
+          startDelay={100}
+          cardWidth={responsiveCardWidth}
+          isLandscape={isLandscape}
         />
 
-        {/* Life Skills Section */}
         <CategorySection
           title="Life Skills"
           emoji="⭐"
           activities={lifeSkills}
           navigation={navigation}
-          startDelay={600}
+          startDelay={200}
+          cardWidth={responsiveCardWidth}
+          isLandscape={isLandscape}
         />
 
-        {/* Fun & Discovery Section */}
         <CategorySection
           title="Fun & Discovery"
           emoji="🔍"
           activities={funDiscovery}
           navigation={navigation}
-          startDelay={900}
+          startDelay={300}
+          cardWidth={responsiveCardWidth}
+          isLandscape={isLandscape}
         />
 
-        {/* Bottom Fun Section */}
-        <View style={styles.bottomSection}>
-          <Text style={styles.bottomText}>🌟 Have Fun Learning! 🌟</Text>
-          <View style={styles.bottomEmojis}>
-            <Text style={styles.bottomEmoji}>🎈</Text>
-            <Text style={styles.bottomEmoji}>🎪</Text>
-            <Text style={styles.bottomEmoji}>🎠</Text>
-            <Text style={styles.bottomEmoji}>🎡</Text>
-            <Text style={styles.bottomEmoji}>🎢</Text>
+        {!isLandscape && (
+          <View style={styles.bottomSection}>
+            <Text style={styles.bottomText}>🌟 Have Fun Learning! 🌟</Text>
+            <View style={styles.bottomEmojis}>
+              <Text style={styles.bottomEmoji}>🎈</Text>
+              <Text style={styles.bottomEmoji}>🎪</Text>
+              <Text style={styles.bottomEmoji}>🎠</Text>
+              <Text style={styles.bottomEmoji}>🎡</Text>
+              <Text style={styles.bottomEmoji}>🎢</Text>
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -320,18 +353,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
+  subHeaderLandscape: {
+    paddingVertical: 6,
+  },
   subHeaderText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#9B59B6',
   },
+  subHeaderTextLandscape: {
+    fontSize: 14,
+  },
   scrollContent: {
-    paddingHorizontal: 15,
     paddingBottom: 40,
     paddingTop: 15,
   },
+  scrollContentLandscape: {
+    paddingBottom: 20,
+    paddingTop: 10,
+  },
   categorySection: {
     marginBottom: 25,
+  },
+  categorySectionLandscape: {
+    marginBottom: 15,
   },
   categoryHeader: {
     flexDirection: 'row',
@@ -340,22 +385,33 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     gap: 10,
   },
+  categoryHeaderLandscape: {
+    marginBottom: 10,
+    gap: 8,
+  },
   categoryEmoji: {
     fontSize: 22,
+  },
+  categoryEmojiLandscape: {
+    fontSize: 18,
   },
   categoryTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },
+  categoryTitleLandscape: {
+    fontSize: 16,
+  },
   activityGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    gap: 8,
   },
   activityCard: {
     borderRadius: 20,
-    marginBottom: 15,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -363,10 +419,17 @@ const styles = StyleSheet.create({
     elevation: 6,
     overflow: 'hidden',
   },
+  activityCardLandscape: {
+    borderRadius: 14,
+    marginBottom: 6,
+  },
   activityCardTouchable: {
     padding: 15,
     alignItems: 'center',
     position: 'relative',
+  },
+  activityCardTouchableLandscape: {
+    padding: 10,
   },
   emojiBadge: {
     position: 'absolute',
@@ -379,21 +442,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  emojiBadgeLandscape: {
+    top: 5,
+    right: 5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
   emojiText: {
     fontSize: 16,
   },
+  emojiTextLandscape: {
+    fontSize: 12,
+  },
   activityImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
-  },
-  activityImage: {
-    width: 45,
-    height: 45,
   },
   activityTitle: {
     fontSize: 15,
@@ -405,16 +471,28 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
     marginBottom: 8,
   },
+  activityTitleLandscape: {
+    fontSize: 11,
+    marginBottom: 5,
+  },
   playIndicator: {
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 10,
   },
+  playIndicatorLandscape: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
   playText: {
     fontSize: 12,
     fontWeight: 'bold',
     color: COLORS.white,
+  },
+  playTextLandscape: {
+    fontSize: 10,
   },
   bottomSection: {
     alignItems: 'center',

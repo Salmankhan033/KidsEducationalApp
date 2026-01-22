@@ -16,6 +16,7 @@ import { ALPHABETS } from '../constants/alphabets';
 import { speakCelebration, speakLetter, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +42,8 @@ export const ColoringScreen: React.FC<ColoringScreenProps> = ({ navigation }) =>
   const [isColored, setIsColored] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [lastGameIndex, setLastGameIndex] = useState(-1);
+  
+  const { isLandscape, width: screenWidth } = useResponsiveLayout();
   
   const letterAnim = useRef(new Animated.Value(0)).current;
   const sparkleAnim = useRef(new Animated.Value(0)).current;
@@ -157,13 +160,139 @@ export const ColoringScreen: React.FC<ColoringScreenProps> = ({ navigation }) =>
     };
   }, []);
 
+  // Landscape layout
+  if (isLandscape) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
+        <ScreenHeader
+          title="Color ABC"
+          icon={SCREEN_ICONS.palette}
+          onBack={() => { stopSpeaking(); navigation.goBack(); }}
+          compact={true}
+        />
+
+        <View style={{ flex: 1, flexDirection: 'row', padding: 10, gap: 10 }}>
+          {/* Left Panel - Letter Display */}
+          <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 20, padding: 15, alignItems: 'center', justifyContent: 'center' }}>
+            {/* Sparkles */}
+            {isColored && (
+              <>
+                {[0, 1, 2, 3].map((i) => (
+                  <Animated.View
+                    key={i}
+                    style={[
+                      { position: 'absolute' },
+                      { top: 20 + (i * 25), left: i % 2 === 0 ? 20 : undefined, right: i % 2 === 1 ? 20 : undefined },
+                      { opacity: sparkleAnim, transform: [{ scale: sparkleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.5] }) }] },
+                    ]}
+                  >
+                    <Image source={SCREEN_ICONS.starGold} style={{ width: 24, height: 24 }} resizeMode="contain" />
+                  </Animated.View>
+                ))}
+              </>
+            )}
+
+            {/* Main Letter */}
+            <TouchableOpacity onPress={applyColor} disabled={isColored}>
+              <Animated.View
+                style={[
+                  { width: 150, height: 150, borderRadius: 75, borderWidth: 4, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
+                  { transform: [{ scale: letterAnim }], borderColor: isColored ? letterColor : '#E0E0E0' },
+                ]}
+              >
+                <Text style={{ fontSize: 100, fontWeight: '900', color: letterColor, textShadowColor: isColored ? 'rgba(0,0,0,0.3)' : 'transparent', textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 3 }}>
+                  {currentLetter.letter}
+                </Text>
+              </Animated.View>
+            </TouchableOpacity>
+
+            {/* Word and Emoji */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <Text style={{ fontSize: 30 }}>{currentLetter.emoji}</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#333' }}>{currentLetter.word}</Text>
+            </View>
+
+            {/* Navigation */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 15 }}>
+              <TouchableOpacity onPress={prevLetter} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 18 }}>◀</Text>
+              </TouchableOpacity>
+              <View style={{ backgroundColor: COLORS.purple, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 15 }}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>{currentLetterIndex + 1}/{ALPHABETS.length}</Text>
+              </View>
+              <TouchableOpacity onPress={nextLetter} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 18 }}>▶</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Right Panel - Color Palette */}
+          <View style={{ width: 280, backgroundColor: '#fff', borderRadius: 20, padding: 15 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#666', textAlign: 'center', marginBottom: 10 }}>
+              {isColored ? '✨ Great job!' : '🎨 Pick a color & tap the letter!'}
+            </Text>
+
+            {/* Color Palette */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 15 }}>
+              {COLOR_PALETTE.map((color, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => { setSelectedColor(color); resetColor(); }}
+                  style={[
+                    { width: 40, height: 40, borderRadius: 20, backgroundColor: color, borderWidth: 2, borderColor: '#fff' },
+                    selectedColor === color && { borderWidth: 3, borderColor: '#333', transform: [{ scale: 1.1 }] },
+                  ]}
+                />
+              ))}
+            </View>
+
+            {/* Action Buttons */}
+            {isColored && (
+              <View style={{ gap: 10 }}>
+                <TouchableOpacity onPress={continueColoring} style={{ backgroundColor: COLORS.green, paddingVertical: 12, borderRadius: 15, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>🔤 Next Letter</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToGame} style={{ backgroundColor: COLORS.purple, paddingVertical: 12, borderRadius: 15, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>🎮 Play a Game</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={resetColor} style={{ backgroundColor: '#FF6B6B', paddingVertical: 12, borderRadius: 15, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>🔄 Reset Color</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Celebration Modal */}
+        <Modal visible={showCelebration} transparent animationType="fade">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
+            <Animated.View style={[{ backgroundColor: '#fff', padding: 30, borderRadius: 25, alignItems: 'center' }, { transform: [{ scale: celebrationAnim }] }]}>
+              <Text style={{ fontSize: 50 }}>🎉</Text>
+              <Text style={{ fontSize: 24, fontWeight: '800', color: COLORS.purple, marginTop: 10 }}>Amazing!</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 15 }}>
+                <TouchableOpacity onPress={continueColoring} style={{ backgroundColor: COLORS.green, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 15 }}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>🔤 Next</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToGame} style={{ backgroundColor: COLORS.purple, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 15 }}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>🎮 Game</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
+  // Portrait layout
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* Header */}
       <ScreenHeader
         title="Color ABC"
         icon={SCREEN_ICONS.palette}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

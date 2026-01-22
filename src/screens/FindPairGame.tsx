@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
 import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -90,6 +92,8 @@ export const FindPairGame: React.FC<FindPairGameProps> = ({ navigation }) => {
   const [matchedItems, setMatchedItems] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
+  
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
   
   const celebrationAnim = useRef(new Animated.Value(0)).current;
   const cardAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
@@ -178,62 +182,70 @@ export const FindPairGame: React.FC<FindPairGameProps> = ({ navigation }) => {
     initializePuzzle();
   };
 
-  const CARD_SIZE = (width - 60) / 2;
+  const CARD_SIZE = isLandscape ? 60 : (width - 60) / 2;
+  const mainItemSize = isLandscape ? 70 : 90;
+  const optionSize = isLandscape ? 55 : 70;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Find Pairs"
         icon={SCREEN_ICONS.puzzle}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
-      {/* Score & Progress */}
-      <View style={styles.topRow}>
-        <View style={styles.scoreBox}>
-          <Text style={styles.scoreLabel}>⭐ Score</Text>
-          <Text style={styles.scoreValue}>{score}</Text>
-        </View>
-        <View style={styles.progressBox}>
-          <Text style={styles.progressText}>{currentPuzzle + 1}/{PAIR_PUZZLES.length}</Text>
-        </View>
-      </View>
-
-      {/* Instructions */}
-      <View style={[styles.instructionBox, { backgroundColor: puzzle.bgColor }]}>
-        <Text style={styles.instructionText}>
-          👆 Find the matching pairs below!
-        </Text>
-      </View>
-
-      {/* Main Items to Match */}
-      <View style={[styles.mainItemsRow, { backgroundColor: puzzle.bgColor }]}>
-        {puzzle.mainItems.map((item, index) => (
-          <View 
-            key={index} 
-            style={[
-              styles.mainItemCard,
-              matchedItems.includes(puzzle.correctIndices[index]) && styles.matchedMainCard,
-            ]}
-          >
-            <Text style={styles.mainItemEmoji}>{item.emoji}</Text>
-            {matchedItems.includes(puzzle.correctIndices[index]) && (
-              <View style={styles.checkBadge}>
-                <Text style={styles.checkText}>✓</Text>
-              </View>
-            )}
-          </View>
-        ))}
-      </View>
-
-      {/* Options Grid */}
-      <Animated.View 
-        style={[
-          styles.optionsContainer,
-          { transform: [{ translateX: shakeAnim }] }
-        ]}
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, isLandscape && { paddingVertical: 5 }]}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.optionsGrid}>
+        {/* Score & Progress */}
+        <View style={[styles.topRow, isLandscape && { marginBottom: 5 }]}>
+          <View style={[styles.scoreBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 6 }]}>
+            <Text style={[styles.scoreLabel, isLandscape && { fontSize: 11 }]}>⭐ Score</Text>
+            <Text style={[styles.scoreValue, isLandscape && { fontSize: 18 }]}>{score}</Text>
+          </View>
+          <View style={[styles.progressBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 6 }]}>
+            <Text style={[styles.progressText, isLandscape && { fontSize: 12 }]}>{currentPuzzle + 1}/{PAIR_PUZZLES.length}</Text>
+          </View>
+        </View>
+
+        {/* Instructions */}
+        <View style={[styles.instructionBox, { backgroundColor: puzzle.bgColor }, isLandscape && { paddingVertical: 8, marginBottom: 8 }]}>
+          <Text style={[styles.instructionText, isLandscape && { fontSize: 13 }]}>
+            👆 Find the matching pairs below!
+          </Text>
+        </View>
+
+        {/* Main Items to Match */}
+        <View style={[styles.mainItemsRow, { backgroundColor: puzzle.bgColor }, isLandscape && { paddingVertical: 10, marginBottom: 10 }]}>
+          {puzzle.mainItems.map((item, index) => (
+            <View 
+              key={index} 
+              style={[
+                styles.mainItemCard,
+                { width: mainItemSize, height: mainItemSize, borderRadius: isLandscape ? 12 : 15 },
+                matchedItems.includes(puzzle.correctIndices[index]) && styles.matchedMainCard,
+              ]}
+            >
+              <Text style={[styles.mainItemEmoji, { fontSize: mainItemSize * 0.5 }]}>{item.emoji}</Text>
+              {matchedItems.includes(puzzle.correctIndices[index]) && (
+                <View style={[styles.checkBadge, isLandscape && { width: 20, height: 20 }]}>
+                  <Text style={[styles.checkText, isLandscape && { fontSize: 10 }]}>✓</Text>
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* Options Grid */}
+        <Animated.View 
+          style={[
+            styles.optionsContainer,
+            { transform: [{ translateX: shakeAnim }] }
+          ]}
+        >
+        <View style={[styles.optionsGrid, isLandscape && { gap: 8 }]}>
           {puzzle.options.map((option, index) => {
             const isMatched = matchedItems.includes(index);
             const isCorrectOption = puzzle.correctIndices.includes(index);
@@ -243,13 +255,14 @@ export const FindPairGame: React.FC<FindPairGameProps> = ({ navigation }) => {
                 key={index}
                 style={[
                   styles.optionWrapper,
-                  { transform: [{ scale: cardAnims[index] }] }
+                  { transform: [{ scale: cardAnims[index] }], width: optionSize, height: optionSize }
                 ]}
               >
                 <TouchableOpacity
                   onPress={() => handleOptionPress(index)}
                   style={[
                     styles.optionCard,
+                    { borderRadius: isLandscape ? 12 : 18 },
                     isMatched && styles.matchedOptionCard,
                   ]}
                   disabled={isMatched}
@@ -257,14 +270,15 @@ export const FindPairGame: React.FC<FindPairGameProps> = ({ navigation }) => {
                 >
                   <Text style={[
                     styles.optionEmoji,
+                    { fontSize: optionSize * 0.5 },
                     isMatched && styles.matchedEmoji,
                   ]}>
                     {option}
                   </Text>
                   
                   {isMatched && (
-                    <View style={styles.matchedBadge}>
-                      <Text style={styles.matchedBadgeText}>✓</Text>
+                    <View style={[styles.matchedBadge, isLandscape && { width: 18, height: 18 }]}>
+                      <Text style={[styles.matchedBadgeText, isLandscape && { fontSize: 10 }]}>✓</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -274,6 +288,20 @@ export const FindPairGame: React.FC<FindPairGameProps> = ({ navigation }) => {
         </View>
       </Animated.View>
 
+        {/* Bottom Buttons */}
+        <View style={[styles.buttonRow, isLandscape && { paddingVertical: 8, gap: 15 }]}>
+          <TouchableOpacity onPress={resetGame} style={[styles.resetButton, isLandscape && { paddingHorizontal: 16, paddingVertical: 8 }]}>
+            <Text style={[styles.buttonEmoji, isLandscape && { fontSize: 16 }]}>🔄</Text>
+            <Text style={[styles.buttonText, isLandscape && { fontSize: 12 }]}>Reset</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={nextPuzzle} style={[styles.nextButton, isLandscape && { paddingHorizontal: 16, paddingVertical: 8 }]}>
+            <Text style={[styles.buttonEmoji, isLandscape && { fontSize: 16 }]}>➡️</Text>
+            <Text style={[styles.buttonText, isLandscape && { fontSize: 12 }]}>Next</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
       {/* Celebration Overlay */}
       {showCelebration && (
         <Animated.View 
@@ -282,26 +310,13 @@ export const FindPairGame: React.FC<FindPairGameProps> = ({ navigation }) => {
             { transform: [{ scale: celebrationAnim }] }
           ]}
         >
-          <View style={styles.celebrationCard}>
-            <Text style={styles.celebrationEmoji}>🎉</Text>
-            <Text style={styles.celebrationText}>Perfect Match!</Text>
-            <Text style={styles.celebrationSubtext}>You found all pairs!</Text>
+          <View style={[styles.celebrationCard, isLandscape && { padding: 20 }]}>
+            <Text style={[styles.celebrationEmoji, isLandscape && { fontSize: 50 }]}>🎉</Text>
+            <Text style={[styles.celebrationText, isLandscape && { fontSize: 22 }]}>Perfect Match!</Text>
+            <Text style={[styles.celebrationSubtext, isLandscape && { fontSize: 14 }]}>You found all pairs!</Text>
           </View>
         </Animated.View>
       )}
-
-      {/* Bottom Buttons */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity onPress={resetGame} style={styles.resetButton}>
-          <Text style={styles.buttonEmoji}>🔄</Text>
-          <Text style={styles.buttonText}>Reset</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity onPress={nextPuzzle} style={styles.nextButton}>
-          <Text style={styles.buttonEmoji}>➡️</Text>
-          <Text style={styles.buttonText}>Next</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -310,6 +325,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#5D4037', // Brown wooden background
+  },
+  scrollContent: {
+    paddingBottom: 20,
+    alignItems: 'center',
   },
   topRow: {
     flexDirection: 'row',
@@ -546,4 +565,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
 

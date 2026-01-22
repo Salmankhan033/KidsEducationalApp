@@ -12,6 +12,7 @@ import { COLORS } from '../constants/colors';
 import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -70,6 +71,7 @@ interface ShapeInObjectGameProps {
 
 export const ShapeInObjectGame: React.FC<ShapeInObjectGameProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { isLandscape } = useResponsiveLayout();
   const [currentPuzzle, setCurrentPuzzle] = useState(0);
   const [matchedShapes, setMatchedShapes] = useState<number[]>([]);
   const [score, setScore] = useState(0);
@@ -175,12 +177,179 @@ export const ShapeInObjectGame: React.FC<ShapeInObjectGameProps> = ({ navigation
     initializePuzzle();
   };
 
+  // Landscape layout
+  if (isLandscape) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
+        <ScreenHeader
+          title="Shape Match"
+          icon={SCREEN_ICONS.shapes}
+          onBack={() => { stopSpeaking(); navigation.goBack(); }}
+          compact={true}
+        />
+
+        <View style={{ flex: 1, flexDirection: 'row', padding: 10, gap: 10 }}>
+          {/* Left Panel - Objects to Match */}
+          <View style={{ 
+            flex: 1, 
+            backgroundColor: puzzle.bgColor, 
+            borderRadius: 20, 
+            padding: 15,
+            justifyContent: 'center',
+          }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+              <View style={{ backgroundColor: '#FFD700', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700' }}>⭐ {score}</Text>
+              </View>
+              <View style={{ backgroundColor: '#9C27B0', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 }}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{currentPuzzle + 1}/{SHAPE_PUZZLES.length}</Text>
+              </View>
+            </View>
+
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 15 }}>
+              🔷 Find the shape that matches!
+            </Text>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 20 }}>
+              {puzzle.objects.map((obj, index) => {
+                const isMatched = matchedShapes.includes(puzzle.correctIndices[index]);
+                
+                return (
+                  <Animated.View 
+                    key={index}
+                    style={[
+                      { 
+                        width: 140, 
+                        backgroundColor: '#fff', 
+                        borderRadius: 20, 
+                        padding: 15, 
+                        alignItems: 'center',
+                        borderWidth: isMatched ? 4 : 0,
+                        borderColor: '#27AE60',
+                      },
+                      { transform: [{ scale: objectAnims[index] }] },
+                    ]}
+                  >
+                    <Text style={{ fontSize: 50 }}>{obj.emoji}</Text>
+                    <View style={[
+                      { 
+                        width: 50, height: 50, borderRadius: 10, 
+                        backgroundColor: isMatched ? '#27AE60' : '#333', 
+                        justifyContent: 'center', alignItems: 'center', 
+                        marginTop: 10 
+                      },
+                    ]}>
+                      <Text style={{ fontSize: 24, color: isMatched ? '#fff' : '#888' }}>
+                        {obj.shape}
+                      </Text>
+                    </View>
+                    {isMatched && (
+                      <View style={{ position: 'absolute', top: -8, right: -8, backgroundColor: '#27AE60', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>✓</Text>
+                      </View>
+                    )}
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Right Panel - Shape Options */}
+          <Animated.View 
+            style={{ 
+              width: 280, 
+              backgroundColor: '#fff', 
+              borderRadius: 20, 
+              padding: 15,
+              justifyContent: 'center',
+              transform: [{ translateX: shakeAnim }],
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#666', textAlign: 'center', marginBottom: 15 }}>
+              Tap the matching shapes!
+            </Text>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 }}>
+              {puzzle.shapeOptions.map((shape, index) => {
+                const isMatched = matchedShapes.includes(index);
+                
+                return (
+                  <Animated.View
+                    key={index}
+                    style={{ transform: [{ scale: cardAnims[index] }] }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleShapePress(index)}
+                      style={[
+                        { 
+                          width: 80, height: 80, 
+                          backgroundColor: isMatched ? '#27AE60' : '#F5F5F5', 
+                          borderRadius: 15, 
+                          justifyContent: 'center', 
+                          alignItems: 'center',
+                          borderWidth: 3,
+                          borderColor: isMatched ? '#1E8449' : '#E0E0E0',
+                        },
+                      ]}
+                      disabled={isMatched}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 36, color: isMatched ? '#fff' : '#333' }}>
+                        {shape}
+                      </Text>
+                      {isMatched && (
+                        <View style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#fff', width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#27AE60' }}>
+                          <Text style={{ color: '#27AE60', fontSize: 14, fontWeight: 'bold' }}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
+            </View>
+
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 15, marginTop: 20 }}>
+              <TouchableOpacity onPress={resetGame} style={{ backgroundColor: '#FF6B6B', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={{ fontSize: 16 }}>🔄</Text>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Reset</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity onPress={nextPuzzle} style={{ backgroundColor: '#4CAF50', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={{ fontSize: 16 }}>➡️</Text>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Next</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Celebration Overlay */}
+        {showCelebration && (
+          <Animated.View 
+            style={[
+              { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+              { transform: [{ scale: celebrationAnim }] }
+            ]}
+          >
+            <View style={{ backgroundColor: '#fff', padding: 30, borderRadius: 25, alignItems: 'center' }}>
+              <Text style={{ fontSize: 50 }}>🎉</Text>
+              <Text style={{ fontSize: 24, fontWeight: '800', color: '#27AE60', marginTop: 10 }}>Great Job!</Text>
+              <Text style={{ fontSize: 16, color: '#666', marginTop: 5 }}>All shapes matched!</Text>
+            </View>
+          </Animated.View>
+        )}
+      </View>
+    );
+  }
+
+  // Portrait layout
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Shape Match"
         icon={SCREEN_ICONS.shapes}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
       {/* Score & Progress */}
@@ -577,4 +746,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
 

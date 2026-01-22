@@ -16,6 +16,7 @@ import { SHAPES } from '../constants/gameData';
 import { speakShape, speakWord, stopSpeaking, speakCelebration } from '../utils/speech';
 import { SCREEN_ICONS } from '../assets/images';
 import { MuteButton } from '../components';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width, height } = Dimensions.get('window');
 
@@ -166,11 +167,12 @@ const Flashcard: React.FC<FlashcardProps> = ({
   const cardAnim = useRef(new Animated.Value(0)).current;
   const balloonBounce = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
 
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
 
   useEffect(() => {
-    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    scrollViewRef.current?.scrollTo({ y: 0, x: 0, animated: false });
 
     cardAnim.setValue(0);
     Animated.spring(cardAnim, {
@@ -190,6 +192,227 @@ const Flashcard: React.FC<FlashcardProps> = ({
     speakShape(shapeData.name);
   }, [shapeData, cardAnim, balloonBounce]);
 
+  // Landscape layout
+  if (isLandscape) {
+    return (
+      <View style={{ flex: 1, flexDirection: 'row', padding: 10 }}>
+        {/* Left Panel - Shape Display */}
+        <View style={{ 
+          width: 220, 
+          backgroundColor: '#fff', 
+          borderRadius: 20, 
+          borderWidth: 4, 
+          borderColor: shapeData.color,
+          padding: 15,
+          marginRight: 10,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <Animated.View style={{ transform: [{ translateY: balloonBounce }] }}>
+            <View style={{ backgroundColor: shapeData.color, width: 70, height: 70, borderRadius: 35, justifyContent: 'center', alignItems: 'center', marginBottom: 5 }}>
+              <Text style={{ fontSize: 40 }}>{shapeData.emoji}</Text>
+            </View>
+          </Animated.View>
+          
+          <Text style={{ fontSize: 28, fontWeight: '800', color: shapeData.color, marginTop: 5 }}>{shapeData.name}</Text>
+          
+          <View style={{ backgroundColor: shapeData.color + '20', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 15, marginTop: 8 }}>
+            <Text style={{ color: shapeData.color, fontSize: 14, fontWeight: '700' }}>
+              {shapeData.sides > 0 ? `${shapeData.sides} sides` : 'No corners - Round!'}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => speakShape(shapeData.name)}
+            style={{ backgroundColor: shapeData.color, padding: 10, borderRadius: 20, marginTop: 10 }}
+          >
+            <Image source={SCREEN_ICONS.speaker} style={{ width: 24, height: 24, tintColor: '#fff' }} />
+          </TouchableOpacity>
+
+          {/* Navigation */}
+          <View style={{ flexDirection: 'row', marginTop: 15, gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => { stopSpeaking(); onPrevious(); }}
+              disabled={!hasPrevious}
+              style={{ 
+                width: 40, height: 40, borderRadius: 20, 
+                backgroundColor: hasPrevious ? shapeData.color : '#ddd',
+                justifyContent: 'center', alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>◀</Text>
+            </TouchableOpacity>
+            <View style={{ backgroundColor: 'rgba(0,0,0,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600' }}>{index + 1}/{SHAPES.length}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => { stopSpeaking(); onNext(); }}
+              disabled={!hasNext}
+              style={{ 
+                width: 40, height: 40, borderRadius: 20, 
+                backgroundColor: hasNext ? shapeData.color : '#ddd',
+                justifyContent: 'center', alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>▶</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Right Panel - Activity Cards */}
+        <ScrollView 
+          ref={scrollViewRef}
+          style={{ flex: 1 }}
+          horizontal={true}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ flexDirection: 'row', gap: 10, paddingRight: 20 }}
+        >
+          {/* Draw the Shape Card */}
+          <View style={{ 
+            width: screenWidth * 0.28, 
+            backgroundColor: '#fff', 
+            borderRadius: 18, 
+            borderWidth: 3, 
+            borderColor: '#E91E63',
+            padding: 12,
+          }}>
+            <View style={{ backgroundColor: '#E91E63', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'center', marginBottom: 10 }}>
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>✏️ Draw It!</Text>
+            </View>
+            
+            <View style={{ backgroundColor: '#FCE4EC', borderRadius: 15, padding: 15, alignItems: 'center', flex: 1, justifyContent: 'center' }}>
+              <Text style={{ fontSize: 60, opacity: 0.3 }}>{shapeData.emoji}</Text>
+              <Text style={{ fontSize: 12, color: '#E91E63', marginTop: 8, textAlign: 'center' }}>Trace with your finger!</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => speakWord(`Draw a ${shapeData.name}`)}
+              style={{ backgroundColor: '#E91E63', padding: 8, borderRadius: 15, alignSelf: 'center', marginTop: 8 }}
+            >
+              <Image source={SCREEN_ICONS.speaker} style={{ width: 18, height: 18, tintColor: '#fff' }} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Find Objects Card */}
+          <View style={{ 
+            width: screenWidth * 0.28, 
+            backgroundColor: '#fff', 
+            borderRadius: 18, 
+            borderWidth: 3, 
+            borderColor: '#27AE60',
+            padding: 12,
+          }}>
+            <View style={{ backgroundColor: '#27AE60', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'center', marginBottom: 10 }}>
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>🔍 Find Objects</Text>
+            </View>
+            
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+              {SHAPE_OBJECTS[shapeData.name]?.map((obj, idx) => (
+                <TouchableOpacity 
+                  key={idx} 
+                  style={{ backgroundColor: '#E8F5E9', padding: 10, borderRadius: 12, alignItems: 'center', width: '45%' }}
+                  onPress={() => speakWord(obj.name)}
+                >
+                  <Text style={{ fontSize: 32 }}>{obj.emoji}</Text>
+                  <Text style={{ fontSize: 11, color: '#27AE60', fontWeight: '600', marginTop: 4 }}>{obj.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Real Life Examples Card */}
+          <View style={{ 
+            width: screenWidth * 0.28, 
+            backgroundColor: '#fff', 
+            borderRadius: 18, 
+            borderWidth: 3, 
+            borderColor: '#3498DB',
+            padding: 12,
+          }}>
+            <View style={{ backgroundColor: '#3498DB', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'center', marginBottom: 10 }}>
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>🌍 Real Life</Text>
+            </View>
+            
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+              {REAL_LIFE_EXAMPLES[shapeData.name]?.map((example, idx) => (
+                <TouchableOpacity 
+                  key={idx} 
+                  style={{ backgroundColor: '#E3F2FD', padding: 10, borderRadius: 12, alignItems: 'center', width: '45%' }}
+                  onPress={() => speakWord(example.text)}
+                >
+                  <Text style={{ fontSize: 32 }}>{example.emoji}</Text>
+                  <Text style={{ fontSize: 11, color: '#3498DB', fontWeight: '600', marginTop: 4 }}>{example.text}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Shape Facts Card */}
+          <View style={{ 
+            width: screenWidth * 0.28, 
+            backgroundColor: '#fff', 
+            borderRadius: 18, 
+            borderWidth: 3, 
+            borderColor: '#9B59B6',
+            padding: 12,
+          }}>
+            <View style={{ backgroundColor: '#9B59B6', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'center', marginBottom: 10 }}>
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>📐 Facts</Text>
+            </View>
+            
+            <View style={{ backgroundColor: '#F3E5F5', borderRadius: 12, padding: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E1BEE7' }}>
+                <Text style={{ fontSize: 13, color: '#666' }}>Name:</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#9B59B6' }}>{shapeData.name}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#E1BEE7' }}>
+                <Text style={{ fontSize: 13, color: '#666' }}>Sides:</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#9B59B6' }}>{shapeData.sides > 0 ? shapeData.sides : 'None'}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+                <Text style={{ fontSize: 13, color: '#666' }}>Corners:</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#9B59B6' }}>{shapeData.sides > 0 ? shapeData.sides : 'None'}</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => speakWord(`${shapeData.name} has ${shapeData.sides > 0 ? shapeData.sides + ' sides' : 'no sides, it is round'}`)}
+              style={{ backgroundColor: '#9B59B6', padding: 8, borderRadius: 15, alignSelf: 'center', marginTop: 8 }}
+            >
+              <Image source={SCREEN_ICONS.speaker} style={{ width: 18, height: 18, tintColor: '#fff' }} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Fun Fact Card */}
+          <View style={{ 
+            width: screenWidth * 0.32, 
+            backgroundColor: '#FFF3E0', 
+            borderRadius: 18, 
+            borderWidth: 3, 
+            borderColor: '#FF5722',
+            padding: 12,
+          }}>
+            <View style={{ backgroundColor: '#FF5722', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'center', marginBottom: 10 }}>
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>💡 Fun Fact!</Text>
+            </View>
+            
+            <View style={{ backgroundColor: '#FFE0B2', borderRadius: 12, padding: 12, flex: 1, justifyContent: 'center' }}>
+              <Text style={{ fontSize: 14, color: '#E65100', lineHeight: 20, textAlign: 'center' }}>{FUN_FACTS[shapeData.name]}</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => speakWord(FUN_FACTS[shapeData.name])}
+              style={{ backgroundColor: '#FF5722', padding: 8, borderRadius: 15, alignSelf: 'center', marginTop: 8 }}
+            >
+              <Image source={SCREEN_ICONS.speaker} style={{ width: 18, height: 18, tintColor: '#fff' }} />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Portrait layout - original
   return (
     <ScrollView
       ref={scrollViewRef}
@@ -400,9 +623,11 @@ interface GridCardProps {
   shapeData: ShapeData;
   index: number;
   onPress: () => void;
+  cardWidth: number;
+  isLandscape: boolean;
 }
 
-const GridCard: React.FC<GridCardProps> = ({ shapeData, index, onPress }) => {
+const GridCard: React.FC<GridCardProps> = ({ shapeData, index, onPress, cardWidth, isLandscape }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
 
@@ -410,25 +635,34 @@ const GridCard: React.FC<GridCardProps> = ({ shapeData, index, onPress }) => {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      delay: index * 25,
+      delay: index * 15,
       tension: 60,
       friction: 8,
     }).start();
   }, [scaleAnim, index]);
 
+  const balloonSize = isLandscape ? 40 : 55;
+
   return (
-    <Animated.View style={[styles.gridCard, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[styles.gridCard, { width: cardWidth, transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[styles.gridCardInner, { borderColor: borderColor }]}
+        style={[
+          styles.gridCardInner, 
+          { borderColor: borderColor },
+          isLandscape && { borderRadius: 14, borderWidth: 3, padding: 10 },
+        ]}
         activeOpacity={0.8}
       >
-        <View style={[styles.gridBalloon, { backgroundColor: shapeData.color }]}>
-          <Text style={styles.gridBalloonEmoji}>{shapeData.emoji}</Text>
+        <View style={[
+          styles.gridBalloon, 
+          { backgroundColor: shapeData.color, width: balloonSize, height: balloonSize, borderRadius: balloonSize / 2 }
+        ]}>
+          <Text style={[styles.gridBalloonEmoji, isLandscape && { fontSize: 22 }]}>{shapeData.emoji}</Text>
         </View>
 
-        <Text style={styles.gridName}>{shapeData.name}</Text>
-        <Text style={styles.gridSides}>
+        <Text style={[styles.gridName, isLandscape && { fontSize: 13, marginTop: 6 }]}>{shapeData.name}</Text>
+        <Text style={[styles.gridSides, isLandscape && { fontSize: 10, marginTop: 2 }]}>
           {shapeData.sides > 0 ? `${shapeData.sides} sides` : 'Round'}
         </Text>
       </TouchableOpacity>
@@ -448,6 +682,7 @@ const MatchGame: React.FC<MatchGameProps> = ({ score, setScore }) => {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
   
   // Celebration animation values
   const celebrationAnim = useRef(new Animated.Value(0)).current;
@@ -595,6 +830,173 @@ const MatchGame: React.FC<MatchGameProps> = ({ score, setScore }) => {
     return { backgroundColor: baseColor };
   };
 
+  // Landscape layout for Match Game
+  if (isLandscape) {
+    return (
+      <View style={{ flex: 1, flexDirection: 'row', padding: 10 }}>
+        {/* Left Panel - Question Shape */}
+        <Animated.View 
+          style={{ 
+            width: screenWidth * 0.35, 
+            backgroundColor: '#fff', 
+            borderRadius: 20, 
+            borderWidth: 4, 
+            borderColor: matchQuestion.shape.color,
+            padding: 15,
+            marginRight: 10,
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            transform: [{ translateX: shakeAnim }],
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 10 }}>
+            Find the {matchQuestion.shape.name}!
+          </Text>
+          
+          <View style={{ 
+            width: 120, height: 120, borderRadius: 20, 
+            backgroundColor: matchQuestion.shape.color + '20', 
+            justifyContent: 'center', alignItems: 'center' 
+          }}>
+            <Text style={{ fontSize: 70 }}>{matchQuestion.shape.emoji}</Text>
+          </View>
+          
+          <View style={{ backgroundColor: matchQuestion.shape.color, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 15, marginTop: 15 }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{matchQuestion.shape.name}</Text>
+          </View>
+          
+          {/* Celebration in left panel */}
+          {showCelebration && (
+            <>
+              {[{ left: 10 }, { right: 10 }, { left: 40 }, { right: 40 }].map((pos, i) => (
+                <Animated.Text
+                  key={`balloon-l-${i}`}
+                  style={[
+                    { position: 'absolute', fontSize: 28, bottom: 0, ...pos },
+                    {
+                      transform: [{ translateY: balloonAnims[i].interpolate({ inputRange: [0, 1], outputRange: [150, -30] }) }],
+                      opacity: balloonAnims[i],
+                    }
+                  ]}
+                >
+                  🎈
+                </Animated.Text>
+              ))}
+            </>
+          )}
+        </Animated.View>
+
+        {/* Right Panel - Answer Options */}
+        <View style={{ 
+          flex: 1, 
+          backgroundColor: '#fff', 
+          borderRadius: 20, 
+          borderWidth: 3, 
+          borderColor: '#E0E0E0',
+          padding: 15,
+          overflow: 'hidden',
+        }}>
+          {/* Score badge */}
+          <View style={{ position: 'absolute', top: 10, right: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFD700', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, zIndex: 10 }}>
+            <Image source={SCREEN_ICONS.starGold} style={{ width: 20, height: 20, marginRight: 5 }} resizeMode="contain" />
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#333' }}>{score}</Text>
+          </View>
+
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#666', textAlign: 'center', marginBottom: 10 }}>Tap the correct shape!</Text>
+
+          {/* 2x2 Options Grid */}
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 15 }}>
+              {matchQuestion.options.map((shape, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => handleMatchAnswer(shape)}
+                  disabled={isLocked}
+                  style={[
+                    { 
+                      width: (screenWidth * 0.6 - 60) / 2, 
+                      height: 100, 
+                      borderRadius: 15, 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      borderWidth: 3,
+                      borderColor: 'transparent',
+                    },
+                    getOptionStyle(shape.name, index)
+                  ]}
+                >
+                  <Text style={{ fontSize: 40 }}>{shape.emoji}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff', marginTop: 5 }}>{shape.name}</Text>
+                  {selectedAnswer === shape.name && isCorrect === true && (
+                    <Text style={{ position: 'absolute', top: 5, right: 5, fontSize: 18 }}>✓</Text>
+                  )}
+                  {selectedAnswer === shape.name && isCorrect === false && (
+                    <Text style={{ position: 'absolute', top: 5, right: 5, fontSize: 18 }}>✗</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Celebration in right panel */}
+          {showCelebration && (
+            <>
+              {[{ left: 20 }, { right: 20 }, { left: 60 }, { right: 60 }].map((pos, i) => (
+                <Animated.Text
+                  key={`balloon-r-${i}`}
+                  style={[
+                    { position: 'absolute', fontSize: 28, bottom: 0, ...pos },
+                    {
+                      transform: [{ translateY: balloonAnims[i + 2].interpolate({ inputRange: [0, 1], outputRange: [150, -30] }) }],
+                      opacity: balloonAnims[i + 2],
+                    }
+                  ]}
+                >
+                  🎈
+                </Animated.Text>
+              ))}
+              
+              {/* Stars */}
+              {['⭐', '🌟', '✨', '⭐'].map((star, i) => (
+                <Animated.Text
+                  key={`star-${i}`}
+                  style={[
+                    { position: 'absolute', fontSize: 20 },
+                    { top: 30 + i * 25, left: i % 2 === 0 ? 15 : undefined, right: i % 2 === 1 ? 15 : undefined },
+                    { transform: [{ scale: starsScale }], opacity: starsScale }
+                  ]}
+                >
+                  {star}
+                </Animated.Text>
+              ))}
+              
+              {/* Celebration badge */}
+              <Animated.View 
+                style={[
+                  { position: 'absolute', top: '40%', alignSelf: 'center', backgroundColor: '#27AE60', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 25, flexDirection: 'row', alignItems: 'center' },
+                  { transform: [{ scale: celebrationAnim }], opacity: celebrationAnim }
+                ]}
+              >
+                <Text style={{ fontSize: 22 }}>🎉</Text>
+                <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', marginHorizontal: 8 }}>Correct!</Text>
+                <Text style={{ fontSize: 22 }}>🎉</Text>
+              </Animated.View>
+            </>
+          )}
+          
+          {/* Wrong feedback */}
+          {isCorrect === false && (
+            <View style={{ position: 'absolute', bottom: 10, left: 10, right: 10, backgroundColor: '#FFEBEE', padding: 10, borderRadius: 10 }}>
+              <Text style={{ fontSize: 13, color: '#C62828', textAlign: 'center' }}>❌ That's a {selectedAnswer}. Find the {matchQuestion.shape.name}! 💪</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Portrait layout
   return (
     <ScrollView style={styles.matchGameScroll} contentContainerStyle={styles.matchGameScrollContent}>
       <View style={styles.scoreBox}>
@@ -739,6 +1141,13 @@ export const ShapesScreen: React.FC<ShapesScreenProps> = ({ navigation }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'flashcard' | 'match'>('grid');
   const [score, setScore] = useState(0);
+  
+  // Responsive layout
+  const { width: screenWidth, isLandscape, cardWidth } = useResponsiveLayout();
+  const columns = isLandscape ? 4 : 2;
+  const gap = isLandscape ? 10 : 12;
+  const padding = isLandscape ? 15 : 15;
+  const gridCardWidth = cardWidth(columns, gap, padding + insets.left + insets.right);
 
   const openFlashcard = (index: number) => {
     setSelectedIndex(index);
@@ -800,48 +1209,67 @@ export const ShapesScreen: React.FC<ShapesScreenProps> = ({ navigation }) => {
       </View>
 
       {/* Mute Button - Top Right */}
-      <MuteButton style={{ position: 'absolute', right: 15, top: insets.top + 15, zIndex: 100 }} size="medium" />
+      <MuteButton 
+        style={{ position: 'absolute', right: insets.right + 15, top: insets.top + 10, zIndex: 100 }} 
+        size={isLandscape ? 'small' : 'medium'} 
+      />
 
       {viewMode === 'grid' ? (
         <>
-          <View style={[styles.header, { marginTop: insets.top + 10 }]}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Text style={styles.backText}>← Back</Text>
+          <View style={[
+            styles.header, 
+            { marginTop: insets.top + (isLandscape ? 5 : 10), paddingHorizontal: insets.left + 15 },
+            isLandscape && { marginBottom: 5 },
+          ]}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, isLandscape && { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 }]}>
+              <Text style={[styles.backText, isLandscape && { fontSize: 13 }]}>← Back</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>🔷 Shapes</Text>
+            <Text style={[styles.headerTitle, isLandscape && { fontSize: 18 }]}>🔷 Shapes</Text>
             <View style={styles.headerSpace} />
           </View>
 
           {/* Mode Toggle */}
-          <View style={styles.modeToggle}>
+          <View style={[
+            styles.modeToggle,
+            { marginHorizontal: insets.left + 20 },
+            isLandscape && { marginBottom: 5, borderRadius: 18, padding: 3 },
+          ]}>
             <TouchableOpacity
-              style={[styles.modeButton, viewMode === 'grid' && styles.modeButtonActive]}
+              style={[styles.modeButton, viewMode === 'grid' && styles.modeButtonActive, isLandscape && { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 15 }]}
               onPress={() => setViewMode('grid')}
             >
-              <Image source={SCREEN_ICONS.book} style={[styles.modeIcon, viewMode === 'grid' && styles.modeIconActive]} resizeMode="contain" />
-              <Text style={[styles.modeText, viewMode === 'grid' && styles.modeTextActive]}>Learn</Text>
+              <Image source={SCREEN_ICONS.book} style={[styles.modeIcon, viewMode === 'grid' && styles.modeIconActive, isLandscape && { width: 18, height: 18 }]} resizeMode="contain" />
+              <Text style={[styles.modeText, viewMode === 'grid' && styles.modeTextActive, isLandscape && { fontSize: 12 }]}>Learn</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modeButton, viewMode === 'match' && styles.modeButtonActive]}
+              style={[styles.modeButton, viewMode === 'match' && styles.modeButtonActive, isLandscape && { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 15 }]}
               onPress={() => setViewMode('match')}
             >
-              <Image source={SCREEN_ICONS.gamepad} style={[styles.modeIcon, viewMode === 'match' && styles.modeIconActive]} resizeMode="contain" />
-              <Text style={[styles.modeText, viewMode === 'match' && styles.modeTextActive]}>Match</Text>
+              <Image source={SCREEN_ICONS.gamepad} style={[styles.modeIcon, viewMode === 'match' && styles.modeIconActive, isLandscape && { width: 18, height: 18 }]} resizeMode="contain" />
+              <Text style={[styles.modeText, viewMode === 'match' && styles.modeTextActive, isLandscape && { fontSize: 12 }]}>Match</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.instructionBox}>
-            <Text style={styles.instructionText}>✨ Tap to learn shapes! ✨</Text>
+          <View style={[styles.instructionBox, isLandscape && { paddingVertical: 6, marginHorizontal: 10, marginBottom: 5, borderRadius: 15 }]}>
+            <Text style={[styles.instructionText, isLandscape && { fontSize: 11 }]}>✨ Tap to learn shapes! ✨</Text>
           </View>
 
-          <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
-            <View style={styles.gridWrapper}>
+          <ScrollView 
+            contentContainerStyle={[
+              styles.gridContainer,
+              { paddingHorizontal: padding + insets.left, paddingRight: padding + insets.right }
+            ]} 
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={[styles.gridWrapper, { gap: gap }]}>
               {SHAPES.map((shape, index) => (
                 <GridCard
                   key={shape.name}
                   shapeData={shape}
                   index={index}
                   onPress={() => openFlashcard(index)}
+                  cardWidth={gridCardWidth}
+                  isLandscape={isLandscape}
                 />
               ))}
             </View>
@@ -849,11 +1277,15 @@ export const ShapesScreen: React.FC<ShapesScreenProps> = ({ navigation }) => {
         </>
       ) : viewMode === 'match' ? (
         <>
-          <View style={[styles.header, { marginTop: insets.top + 10 }]}>
-            <TouchableOpacity onPress={() => setViewMode('grid')} style={styles.backBtn}>
-              <Text style={styles.backText}>← Back</Text>
+          <View style={[
+            styles.header, 
+            { marginTop: insets.top + (isLandscape ? 5 : 10), paddingHorizontal: insets.left + 15 },
+            isLandscape && { marginBottom: 5 },
+          ]}>
+            <TouchableOpacity onPress={() => setViewMode('grid')} style={[styles.backBtn, isLandscape && { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 }]}>
+              <Text style={[styles.backText, isLandscape && { fontSize: 13 }]}>← Back</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>🎮 Match Game</Text>
+            <Text style={[styles.headerTitle, isLandscape && { fontSize: 18 }]}>🎮 Match Game</Text>
             <View style={styles.headerSpace} />
           </View>
 
@@ -861,9 +1293,9 @@ export const ShapesScreen: React.FC<ShapesScreenProps> = ({ navigation }) => {
         </>
       ) : (
         <>
-          <View style={[styles.flashcardHeader, { marginTop: insets.top + 10 }]}>
-            <TouchableOpacity onPress={closeFlashcard} style={styles.backArrowBtn}>
-              <Text style={styles.backArrowText}>↩</Text>
+          <View style={[styles.flashcardHeader, { marginTop: insets.top + 5, paddingHorizontal: insets.left + 15 }]}>
+            <TouchableOpacity onPress={closeFlashcard} style={[styles.backArrowBtn, isLandscape && { width: 50, height: 50 }]}>
+              <Text style={[styles.backArrowText, isLandscape && { fontSize: 22 }]}>↩</Text>
             </TouchableOpacity>
           </View>
 
@@ -1136,17 +1568,15 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   gridContainer: {
-    paddingHorizontal: 8,
     paddingBottom: 50,
   },
   gridWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   gridCard: {
-    width: CARD_WIDTH,
-    margin: 6,
+    marginBottom: 6,
   },
   gridCardInner: {
     backgroundColor: '#fff',

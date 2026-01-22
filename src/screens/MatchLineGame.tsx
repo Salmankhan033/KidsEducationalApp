@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
@@ -13,51 +14,52 @@ import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
 import Svg, { Line } from 'react-native-svg';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width, height } = Dimensions.get('window');
 
-// Matching game data - Letters to Pictures
+// Matching game data - Pictures to Letters (Pictures on left, Letters on right)
 const MATCH_LEVELS = [
   {
     leftItems: [
+      { id: 'A', emoji: '🍎', name: 'Apple', color: '#FF6B6B' },
+      { id: 'B', emoji: '⚽', name: 'Ball', color: '#4ECDC4' },
+      { id: 'C', emoji: '🐱', name: 'Cat', color: '#FFE66D' },
+      { id: 'D', emoji: '🐕', name: 'Dog', color: '#95E1D3' },
+    ],
+    rightItems: [
       { id: 'A', label: 'A', color: '#FF6B6B' },
       { id: 'B', label: 'B', color: '#4ECDC4' },
       { id: 'C', label: 'C', color: '#FFE66D' },
       { id: 'D', label: 'D', color: '#95E1D3' },
     ],
-    rightItems: [
-      { id: 'A', emoji: '🍎', name: 'Apple' },
-      { id: 'B', emoji: '⚽', name: 'Ball' },
-      { id: 'C', emoji: '🐱', name: 'Cat' },
-      { id: 'D', emoji: '🐕', name: 'Dog' },
-    ],
   },
   {
     leftItems: [
+      { id: 'E', emoji: '🐘', name: 'Elephant', color: '#A8E6CF' },
+      { id: 'F', emoji: '🐸', name: 'Frog', color: '#DDA0DD' },
+      { id: 'G', emoji: '🍇', name: 'Grapes', color: '#87CEEB' },
+      { id: 'H', emoji: '🏠', name: 'House', color: '#FFA07A' },
+    ],
+    rightItems: [
       { id: 'E', label: 'E', color: '#A8E6CF' },
       { id: 'F', label: 'F', color: '#DDA0DD' },
       { id: 'G', label: 'G', color: '#87CEEB' },
       { id: 'H', label: 'H', color: '#FFA07A' },
     ],
-    rightItems: [
-      { id: 'E', emoji: '🐘', name: 'Elephant' },
-      { id: 'F', emoji: '🐸', name: 'Frog' },
-      { id: 'G', emoji: '🍇', name: 'Grapes' },
-      { id: 'H', emoji: '🏠', name: 'House' },
-    ],
   },
   {
     leftItems: [
+      { id: 'I', emoji: '🍦', name: 'Ice cream', color: '#FFB6C1' },
+      { id: 'J', emoji: '🧃', name: 'Juice', color: '#98D8C8' },
+      { id: 'K', emoji: '🪁', name: 'Kite', color: '#F7DC6F' },
+      { id: 'L', emoji: '🦁', name: 'Lion', color: '#BB8FCE' },
+    ],
+    rightItems: [
       { id: 'I', label: 'I', color: '#FFB6C1' },
       { id: 'J', label: 'J', color: '#98D8C8' },
       { id: 'K', label: 'K', color: '#F7DC6F' },
       { id: 'L', label: 'L', color: '#BB8FCE' },
-    ],
-    rightItems: [
-      { id: 'I', emoji: '🍦', name: 'Ice cream' },
-      { id: 'J', emoji: '🧃', name: 'Juice' },
-      { id: 'K', emoji: '🪁', name: 'Kite' },
-      { id: 'L', emoji: '🦁', name: 'Lion' },
     ],
   },
 ];
@@ -74,8 +76,11 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [connections, setConnections] = useState<{ left: string; right: string; color: string }[]>([]);
   const [shuffledRight, setShuffledRight] = useState<typeof MATCH_LEVELS[0]['rightItems']>([]);
+  const [shuffledLeft, setShuffledLeft] = useState<typeof MATCH_LEVELS[0]['leftItems']>([]);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
+  
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
   
   const celebrationAnim = useRef(new Animated.Value(0)).current;
   const itemAnims = useRef(MATCH_LEVELS[0].leftItems.map(() => new Animated.Value(0))).current;
@@ -100,6 +105,7 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
   const initializeLevel = useCallback(() => {
     setConnections([]);
     setSelectedLeft(null);
+    setShuffledLeft(shuffleArray(MATCH_LEVELS[currentLevel].leftItems));
     setShuffledRight(shuffleArray(MATCH_LEVELS[currentLevel].rightItems));
     setShowCelebration(false);
     celebrationAnim.setValue(0);
@@ -116,7 +122,7 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
       }).start();
     });
     
-    speakWord('Match the letters to the pictures!');
+    speakWord('Match the pictures to the letters!');
   }, [currentLevel, celebrationAnim, itemAnims]);
 
   useEffect(() => {
@@ -124,17 +130,17 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
     return () => stopSpeaking();
   }, [currentLevel, initializeLevel]);
 
-  const handleLeftPress = (id: string) => {
+  const handleLeftPress = (id: string, name: string) => {
     // Check if already connected
     if (connections.find(c => c.left === id)) return;
     
     setSelectedLeft(id);
-    speakWord(id);
+    speakWord(name);
   };
 
-  const handleRightPress = (id: string) => {
+  const handleRightPress = (id: string, label: string) => {
     if (!selectedLeft) {
-      speakWord('First tap a letter on the left!');
+      speakWord('First tap a picture on the left!');
       return;
     }
     
@@ -149,8 +155,8 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
       setConnections(newConnections);
       setScore(score + 10);
       
-      const rightItem = shuffledRight.find(item => item.id === id);
-      speakWord(`Correct! ${selectedLeft} for ${rightItem?.name}`);
+      const leftItem = shuffledLeft.find(item => item.id === id);
+      speakWord(`Correct! ${leftItem?.name} starts with ${label}!`);
       
       // Check if level complete
       if (newConnections.length === level.leftItems.length) {
@@ -186,20 +192,149 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
     initializeLevel();
   };
 
-  const ITEM_SIZE = 70;
-  const GAME_AREA_HEIGHT = height * 0.55;
-  const GAME_AREA_PADDING = 30;
-  const COLUMN_WIDTH = 80;
+  // Responsive sizing for landscape
+  const ITEM_SIZE = isLandscape ? 50 : 70;
+  const GAME_AREA_HEIGHT = isLandscape ? screenHeight - 140 : height * 0.55;
+  const GAME_AREA_PADDING = isLandscape ? 20 : 30;
+  const COLUMN_WIDTH = isLandscape ? 60 : 80;
   const GAME_AREA_WIDTH = width - 30; // Account for margins
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Match Lines"
         icon={SCREEN_ICONS.puzzle}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
+      {isLandscape ? (
+        // LANDSCAPE LAYOUT - Horizontal arrangement
+        <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: 15 }}>
+          {/* Left Panel - Score, Level, Instructions */}
+          <View style={{ width: 140, justifyContent: 'center', alignItems: 'center', paddingRight: 10 }}>
+            <View style={[styles.scoreBox, { marginBottom: 10, paddingHorizontal: 12, paddingVertical: 6 }]}>
+              <Text style={[styles.scoreLabel, { fontSize: 13 }]}>⭐ Score</Text>
+              <Text style={[styles.scoreValue, { fontSize: 16 }]}>{score}</Text>
+            </View>
+            <View style={[styles.levelBox, { marginBottom: 15, paddingHorizontal: 12, paddingVertical: 6 }]}>
+              <Text style={[styles.levelText, { fontSize: 12 }]}>Level {currentLevel + 1}/{MATCH_LEVELS.length}</Text>
+            </View>
+            {/* Buttons */}
+            <TouchableOpacity onPress={resetGame} style={[styles.resetButton, { paddingHorizontal: 15, paddingVertical: 8, marginBottom: 8 }]}>
+              <Text style={[styles.buttonEmoji, { fontSize: 14 }]}>🔄</Text>
+              <Text style={[styles.buttonText, { fontSize: 12 }]}>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setCurrentLevel((currentLevel + 1) % MATCH_LEVELS.length)} 
+              style={[styles.nextButton, { paddingHorizontal: 15, paddingVertical: 8 }]}
+            >
+              <Text style={[styles.buttonEmoji, { fontSize: 14 }]}>➡️</Text>
+              <Text style={[styles.buttonText, { fontSize: 12 }]}>Next</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Game Area */}
+          <View 
+            ref={containerRef}
+            style={[styles.gameArea, { flex: 1, height: 'auto', paddingVertical: 15, paddingHorizontal: 20 }]}
+            onLayout={(e) => {
+              const { width: w, height: h } = e.nativeEvent.layout;
+              setContainerLayout({ x: 0, y: 0, width: w, height: h });
+            }}
+          >
+            {/* SVG Lines */}
+            <Svg style={StyleSheet.absoluteFill}>
+              {connections.map((conn, index) => {
+                const leftPos = leftPositions.current[conn.left];
+                const rightPos = rightPositions.current[conn.right];
+                if (!leftPos || !rightPos) return null;
+                
+                const gameWidth = containerLayout.width || screenWidth - 200;
+                const lineStartX = 20 + 55;
+                const lineEndX = gameWidth - 20 - 55;
+                
+                return (
+                  <Line
+                    key={index}
+                    x1={lineStartX}
+                    y1={leftPos.y}
+                    x2={lineEndX}
+                    y2={rightPos.y}
+                    stroke={conn.color}
+                    strokeWidth={5}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </Svg>
+
+            {/* Left Column - Pictures */}
+            <View style={[styles.leftColumn, { width: 55 }]}>
+              {shuffledLeft.map((item, index) => {
+                const isConnected = connections.find(c => c.left === item.id);
+                const isSelected = selectedLeft === item.id;
+                
+                return (
+                  <Animated.View
+                    key={item.id}
+                    style={[{ transform: [{ scale: itemAnims[index] }] }]}
+                    onLayout={(e) => {
+                      const { y, height: h } = e.nativeEvent.layout;
+                      leftPositions.current[item.id] = { x: 0, y: y + h / 2 };
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleLeftPress(item.id, item.name)}
+                      style={[
+                        styles.pictureCard,
+                        { width: 50, height: 50, borderRadius: 12, borderWidth: 3, borderColor: item.color },
+                        isSelected && styles.selectedCard,
+                        isConnected && styles.connectedCard,
+                      ]}
+                      disabled={!!isConnected}
+                    >
+                      <Text style={[styles.pictureEmoji, { fontSize: 28 }]}>{item.emoji}</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
+            </View>
+
+            {/* Right Column - Letters */}
+            <View style={[styles.rightColumn, { width: 55 }]}>
+              {shuffledRight.map((item, index) => {
+                const isConnected = connections.find(c => c.right === item.id);
+                
+                return (
+                  <Animated.View
+                    key={item.id}
+                    style={[{ transform: [{ scale: itemAnims[index] }] }]}
+                    onLayout={(e) => {
+                      const { y, height: h } = e.nativeEvent.layout;
+                      rightPositions.current[item.id] = { x: 0, y: y + h / 2 };
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleRightPress(item.id, item.label)}
+                      style={[
+                        styles.letterCard,
+                        { width: 50, height: 50, borderRadius: 12, borderWidth: 3, backgroundColor: item.color },
+                        isConnected && styles.connectedCard,
+                      ]}
+                      disabled={!!isConnected}
+                    >
+                      <Text style={[styles.letterText, { fontSize: 24 }]}>{item.label}</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      ) : (
+        // PORTRAIT LAYOUT
+        <>
       {/* Score & Progress */}
       <View style={styles.topRow}>
         <View style={styles.scoreBox}>
@@ -214,7 +349,7 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
       {/* Instructions */}
       <View style={styles.instructionBox}>
         <Text style={styles.instructionText}>
-          👆 Tap a letter, then tap the matching picture!
+          👆 Tap a picture, then tap the matching letter!
         </Text>
       </View>
 
@@ -234,10 +369,9 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
             const rightPos = rightPositions.current[conn.right];
             if (!leftPos || !rightPos) return null;
             
-            // Calculate line start (right edge of left column) and end (left edge of right column)
             const gameWidth = containerLayout.width || (width - 30);
-            const lineStartX = GAME_AREA_PADDING + COLUMN_WIDTH; // Right edge of left column
-            const lineEndX = gameWidth - GAME_AREA_PADDING - COLUMN_WIDTH; // Left edge of right column
+                const lineStartX = GAME_AREA_PADDING + COLUMN_WIDTH;
+                const lineEndX = gameWidth - GAME_AREA_PADDING - COLUMN_WIDTH;
             
             return (
               <Line
@@ -254,60 +388,27 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
           })}
         </Svg>
 
-        {/* Left Column - Letters */}
+        {/* Left Column - Pictures */}
         <View style={styles.leftColumn}>
-          {level.leftItems.map((item, index) => {
+          {shuffledLeft.map((item, index) => {
             const isConnected = connections.find(c => c.left === item.id);
             const isSelected = selectedLeft === item.id;
             
             return (
               <Animated.View
                 key={item.id}
-                style={[
-                  { transform: [{ scale: itemAnims[index] }] },
-                ]}
+                    style={[{ transform: [{ scale: itemAnims[index] }] }]}
                 onLayout={(e) => {
                   const { y, height: h } = e.nativeEvent.layout;
                   leftPositions.current[item.id] = { x: 0, y: y + h / 2 };
                 }}
               >
                 <TouchableOpacity
-                  onPress={() => handleLeftPress(item.id)}
-                  style={[
-                    styles.letterCard,
-                    { backgroundColor: item.color },
-                    isSelected && styles.selectedCard,
-                    isConnected && styles.connectedCard,
-                  ]}
-                  disabled={!!isConnected}
-                >
-                  <Text style={styles.letterText}>{item.label}</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            );
-          })}
-        </View>
-
-        {/* Right Column - Pictures */}
-        <View style={styles.rightColumn}>
-          {shuffledRight.map((item, index) => {
-            const isConnected = connections.find(c => c.right === item.id);
-            
-            return (
-              <Animated.View
-                key={item.id}
-                style={[
-                  { transform: [{ scale: itemAnims[index] }] },
-                ]}
-                onLayout={(e) => {
-                  const { y, height: h } = e.nativeEvent.layout;
-                  rightPositions.current[item.id] = { x: 0, y: y + h / 2 };
-                }}
-              >
-                <TouchableOpacity
-                  onPress={() => handleRightPress(item.id)}
+                  onPress={() => handleLeftPress(item.id, item.name)}
                   style={[
                     styles.pictureCard,
+                    { borderColor: item.color },
+                    isSelected && styles.selectedCard,
                     isConnected && styles.connectedCard,
                   ]}
                   disabled={!!isConnected}
@@ -318,7 +419,55 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
             );
           })}
         </View>
+
+        {/* Right Column - Letters */}
+        <View style={styles.rightColumn}>
+          {shuffledRight.map((item, index) => {
+            const isConnected = connections.find(c => c.right === item.id);
+            
+            return (
+              <Animated.View
+                key={item.id}
+                    style={[{ transform: [{ scale: itemAnims[index] }] }]}
+                onLayout={(e) => {
+                  const { y, height: h } = e.nativeEvent.layout;
+                  rightPositions.current[item.id] = { x: 0, y: y + h / 2 };
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => handleRightPress(item.id, item.label)}
+                  style={[
+                    styles.letterCard,
+                    { backgroundColor: item.color },
+                    isConnected && styles.connectedCard,
+                  ]}
+                  disabled={!!isConnected}
+                >
+                  <Text style={styles.letterText}>{item.label}</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
+        </View>
       </View>
+
+          {/* Bottom Buttons */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity onPress={resetGame} style={styles.resetButton}>
+              <Text style={styles.buttonEmoji}>🔄</Text>
+              <Text style={styles.buttonText}>Reset</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => setCurrentLevel((currentLevel + 1) % MATCH_LEVELS.length)} 
+              style={styles.nextButton}
+            >
+              <Text style={styles.buttonEmoji}>➡️</Text>
+              <Text style={styles.buttonText}>Next</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
       {/* Celebration Overlay */}
       {showCelebration && (
@@ -328,31 +477,13 @@ export const MatchLineGame: React.FC<MatchLineGameProps> = ({ navigation }) => {
             { transform: [{ scale: celebrationAnim }] }
           ]}
         >
-          <View style={styles.celebrationCard}>
-            <Text style={styles.celebrationEmoji}>🎉</Text>
-            <Text style={styles.celebrationText}>Perfect!</Text>
-            <Text style={styles.celebrationSubtext}>All matched correctly!</Text>
+          <View style={[styles.celebrationCard, isLandscape && { paddingHorizontal: 25, paddingVertical: 15 }]}>
+            <Text style={[styles.celebrationEmoji, isLandscape && { fontSize: 35 }]}>🎉</Text>
+            <Text style={[styles.celebrationText, isLandscape && { fontSize: 20 }]}>Perfect!</Text>
+            <Text style={[styles.celebrationSubtext, isLandscape && { fontSize: 12 }]}>All matched correctly!</Text>
           </View>
         </Animated.View>
       )}
-
-      {/* Bottom Buttons */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity onPress={resetGame} style={styles.resetButton}>
-          <Text style={styles.buttonEmoji}>🔄</Text>
-          <Text style={styles.buttonText}>Reset</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          onPress={() => {
-            setCurrentLevel((currentLevel + 1) % MATCH_LEVELS.length);
-          }} 
-          style={styles.nextButton}
-        >
-          <Text style={styles.buttonEmoji}>➡️</Text>
-          <Text style={styles.buttonText}>Next</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -561,4 +692,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
 

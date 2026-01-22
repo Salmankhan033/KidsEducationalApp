@@ -54,3 +54,4 @@ export const getAlphabetColor = (index: number): string => {
 
 
 
+

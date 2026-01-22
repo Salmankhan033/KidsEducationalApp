@@ -15,6 +15,7 @@ import { JUICE_FRUITS } from '../constants/activityData';
 import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -98,95 +99,186 @@ export const JuiceMakingScreen: React.FC<JuiceMakingScreenProps> = ({ navigation
     return colors[Math.floor(colors.length / 2)] || colors[0];
   };
 
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Juice Bar"
         icon={SCREEN_ICONS.juice}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
-      {/* Blender */}
-      <Animated.View style={[styles.blenderContainer, { transform: [{ translateX: shakeAnim }] }]}>
-        <View style={styles.blenderTop} />
-        <View style={[styles.blender, { backgroundColor: juiceReady ? getJuiceColor() : '#F5F5F5' }]}>
-          {!juiceReady && (
-            <View style={styles.fruitsInBlender}>
-              {selectedFruits.map((fruit, index) => (
-                <TouchableOpacity key={fruit.name} onPress={() => removeFruit(fruit)}>
-                  <Text style={styles.fruitInBlender}>{fruit.emoji}</Text>
+      {isLandscape ? (
+        // LANDSCAPE LAYOUT - Two panel
+        <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: 15 }}>
+          {/* Left Panel - Blender & Actions */}
+          <View style={{ width: screenWidth * 0.35, alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View style={[{ alignItems: 'center', transform: [{ translateX: shakeAnim }] }]}>
+              <View style={[styles.blenderTop, { width: 60, height: 15 }]} />
+              <View style={[styles.blender, { width: 100, height: 110, backgroundColor: juiceReady ? getJuiceColor() : '#F5F5F5' }]}>
+                {!juiceReady && (
+                  <View style={styles.fruitsInBlender}>
+                    {selectedFruits.map((fruit, index) => (
+                      <TouchableOpacity key={fruit.name} onPress={() => removeFruit(fruit)}>
+                        <Text style={{ fontSize: 25 }}>{fruit.emoji}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    {selectedFruits.length === 0 && (
+                      <Text style={[styles.emptyText, { fontSize: 11 }]}>Add fruits!</Text>
+                    )}
+                  </View>
+                )}
+                {juiceReady && <Text style={{ fontSize: 40 }}>🧃</Text>}
+                {isBlending && (
+                  <Animated.View 
+                    style={[
+                      styles.blendProgress, 
+                      { 
+                        height: blendAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                        backgroundColor: getJuiceColor(),
+                      }
+                    ]} 
+                  />
+                )}
+              </View>
+              <View style={[styles.blenderBase, { width: 120, height: 22 }]} />
+            </Animated.View>
+
+            {/* Actions */}
+            <View style={{ flexDirection: 'row', marginTop: 15, gap: 10 }}>
+              {!juiceReady ? (
+                <TouchableOpacity 
+                  onPress={blend} 
+                  style={[styles.blendButton, { paddingHorizontal: 20, paddingVertical: 10 }, selectedFruits.length === 0 && styles.buttonDisabled]}
+                  disabled={isBlending}
+                >
+                  <Text style={[styles.buttonText, { fontSize: 14 }]}>
+                    {isBlending ? '🔄 Blending...' : '🌀 Blend!'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={drinkJuice} style={[styles.drinkButton, { paddingHorizontal: 20, paddingVertical: 10 }]}>
+                  <Text style={[styles.buttonText, { fontSize: 14 }]}>😋 Drink!</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={reset} style={[styles.resetButton, { width: 40, height: 40, borderRadius: 20 }]}>
+                <Text style={{ fontSize: 18 }}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Right Panel - Fruits Selection */}
+          <View style={{ flex: 1, backgroundColor: COLORS.white, borderRadius: 20, padding: 12, marginLeft: 10 }}>
+            <Text style={[styles.fruitsTitle, { fontSize: 14, marginBottom: 8 }]}>🍎 Pick Fruits (max 3)</Text>
+            <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }} showsVerticalScrollIndicator={false}>
+              {JUICE_FRUITS.map((fruit) => (
+                <TouchableOpacity
+                  key={fruit.name}
+                  style={[
+                    styles.fruitButton,
+                    { backgroundColor: fruit.color, width: 70, paddingVertical: 8 },
+                    selectedFruits.includes(fruit) && styles.fruitSelected,
+                  ]}
+                  onPress={() => addFruit(fruit)}
+                >
+                  <Text style={{ fontSize: 24 }}>{fruit.emoji}</Text>
+                  <Text style={[styles.fruitName, { fontSize: 9 }]}>{fruit.name}</Text>
                 </TouchableOpacity>
               ))}
-              {selectedFruits.length === 0 && (
-                <Text style={styles.emptyText}>Add fruits!</Text>
+            </ScrollView>
+          </View>
+        </View>
+      ) : (
+        // PORTRAIT LAYOUT
+        <>
+          {/* Blender */}
+          <Animated.View style={[styles.blenderContainer, { transform: [{ translateX: shakeAnim }] }]}>
+            <View style={styles.blenderTop} />
+            <View style={[styles.blender, { backgroundColor: juiceReady ? getJuiceColor() : '#F5F5F5' }]}>
+              {!juiceReady && (
+                <View style={styles.fruitsInBlender}>
+                  {selectedFruits.map((fruit, index) => (
+                    <TouchableOpacity key={fruit.name} onPress={() => removeFruit(fruit)}>
+                      <Text style={styles.fruitInBlender}>{fruit.emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  {selectedFruits.length === 0 && (
+                    <Text style={styles.emptyText}>Add fruits!</Text>
+                  )}
+                </View>
+              )}
+              {juiceReady && (
+                <Text style={styles.juiceEmoji}>🧃</Text>
+              )}
+              
+              {/* Blend progress */}
+              {isBlending && (
+                <Animated.View 
+                  style={[
+                    styles.blendProgress, 
+                    { 
+                      height: blendAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                      backgroundColor: getJuiceColor(),
+                    }
+                  ]} 
+                />
               )}
             </View>
-          )}
-          {juiceReady && (
-            <Text style={styles.juiceEmoji}>🧃</Text>
-          )}
-          
-          {/* Blend progress */}
-          {isBlending && (
-            <Animated.View 
-              style={[
-                styles.blendProgress, 
-                { 
-                  height: blendAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', '100%'],
-                  }),
-                  backgroundColor: getJuiceColor(),
-                }
-              ]} 
-            />
-          )}
-        </View>
-        <View style={styles.blenderBase} />
-      </Animated.View>
+            <View style={styles.blenderBase} />
+          </Animated.View>
 
-      {/* Action Buttons */}
-      <View style={styles.actionsRow}>
-        {!juiceReady ? (
-          <TouchableOpacity 
-            onPress={blend} 
-            style={[styles.blendButton, selectedFruits.length === 0 && styles.buttonDisabled]}
-            disabled={isBlending}
-          >
-            <Text style={styles.buttonText}>
-              {isBlending ? '🔄 Blending...' : '🌀 Blend!'}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={drinkJuice} style={styles.drinkButton}>
-            <Text style={styles.buttonText}>😋 Drink!</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={reset} style={styles.resetButton}>
-          <Text style={styles.resetText}>🗑️</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Fruits Selection */}
-      <View style={styles.fruitsContainer}>
-        <Text style={styles.fruitsTitle}>🍎 Pick Fruits (max 3)</Text>
-        <ScrollView contentContainerStyle={styles.fruitsGrid} showsVerticalScrollIndicator={false}>
-          {JUICE_FRUITS.map((fruit) => (
-            <TouchableOpacity
-              key={fruit.name}
-              style={[
-                styles.fruitButton,
-                { backgroundColor: fruit.color },
-                selectedFruits.includes(fruit) && styles.fruitSelected,
-              ]}
-              onPress={() => addFruit(fruit)}
-            >
-              <Text style={styles.fruitEmoji}>{fruit.emoji}</Text>
-              <Text style={styles.fruitName}>{fruit.name}</Text>
+          {/* Action Buttons */}
+          <View style={styles.actionsRow}>
+            {!juiceReady ? (
+              <TouchableOpacity 
+                onPress={blend} 
+                style={[styles.blendButton, selectedFruits.length === 0 && styles.buttonDisabled]}
+                disabled={isBlending}
+              >
+                <Text style={styles.buttonText}>
+                  {isBlending ? '🔄 Blending...' : '🌀 Blend!'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={drinkJuice} style={styles.drinkButton}>
+                <Text style={styles.buttonText}>😋 Drink!</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={reset} style={styles.resetButton}>
+              <Text style={styles.resetText}>🗑️</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+          </View>
+
+          {/* Fruits Selection */}
+          <View style={styles.fruitsContainer}>
+            <Text style={styles.fruitsTitle}>🍎 Pick Fruits (max 3)</Text>
+            <ScrollView contentContainerStyle={styles.fruitsGrid} showsVerticalScrollIndicator={false}>
+              {JUICE_FRUITS.map((fruit) => (
+                <TouchableOpacity
+                  key={fruit.name}
+                  style={[
+                    styles.fruitButton,
+                    { backgroundColor: fruit.color },
+                    selectedFruits.includes(fruit) && styles.fruitSelected,
+                  ]}
+                  onPress={() => addFruit(fruit)}
+                >
+                  <Text style={styles.fruitEmoji}>{fruit.emoji}</Text>
+                  <Text style={styles.fruitName}>{fruit.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </>
+      )}
     </View>
   );
 };

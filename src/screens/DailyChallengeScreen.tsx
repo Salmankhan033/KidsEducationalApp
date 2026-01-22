@@ -7,6 +7,7 @@ import {
   Dimensions,
   Animated,
   Image,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, RAINBOW_COLORS } from '../constants/colors';
@@ -14,6 +15,7 @@ import { DAILY_CHALLENGES, STICKER_COLLECTION } from '../constants/activityData'
 import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +25,7 @@ interface DailyChallengeScreenProps {
 
 export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { isLandscape } = useResponsiveLayout();
   const [todayChallenge, setTodayChallenge] = useState(DAILY_CHALLENGES[0]);
   const [progress, setProgress] = useState(0);
   const [stickers, setStickers] = useState(STICKER_COLLECTION);
@@ -90,97 +93,118 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({ navi
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Challenge"
         icon={SCREEN_ICONS.calendar}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
         rightElement={
-          <View style={styles.stickerCount}>
-            <Image source={SCREEN_ICONS.trophy} style={styles.stickerIcon} resizeMode="contain" />
-            <Text style={styles.stickerText}>{unlockedCount}</Text>
+          <View style={[styles.stickerCount, isLandscape && { padding: 6 }]}>
+            <Image source={SCREEN_ICONS.trophy} style={[styles.stickerIcon, isLandscape && { width: 18, height: 18 }]} resizeMode="contain" />
+            <Text style={[styles.stickerText, isLandscape && { fontSize: 12 }]}>{unlockedCount}</Text>
           </View>
         }
       />
 
-      {/* Today's Challenge */}
-      <View style={styles.challengeCard}>
-        <Text style={styles.challengeLabel}>Today's Challenge</Text>
-        <Text style={styles.challengeEmoji}>{todayChallenge.emoji}</Text>
-        <Text style={styles.challengeTask}>{todayChallenge.task}</Text>
-        
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressLabel}>Progress: {progress} / {todayChallenge.target}</Text>
-          <View style={styles.progressBar}>
-            <Animated.View
-              style={[
-                styles.progressFill,
-                {
-                  width: progressAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', '100%'],
-                  }),
-                },
-              ]}
-            />
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent, 
+          isLandscape && { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 10 }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Today's Challenge */}
+        <View style={[
+          styles.challengeCard, 
+          isLandscape && { width: '45%', marginHorizontal: 5, padding: 12 }
+        ]}>
+          <Text style={[styles.challengeLabel, isLandscape && { fontSize: 12 }]}>Today's Challenge</Text>
+          <Text style={[styles.challengeEmoji, isLandscape && { fontSize: 32 }]}>{todayChallenge.emoji}</Text>
+          <Text style={[styles.challengeTask, isLandscape && { fontSize: 14 }]}>{todayChallenge.task}</Text>
+          
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <Text style={[styles.progressLabel, isLandscape && { fontSize: 11 }]}>Progress: {progress} / {todayChallenge.target}</Text>
+            <View style={[styles.progressBar, isLandscape && { height: 10 }]}>
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          {/* Action Button */}
+          {!showReward && (
+            <TouchableOpacity onPress={incrementProgress} style={[styles.actionButton, isLandscape && { paddingVertical: 10 }]}>
+              <Text style={[styles.actionText, isLandscape && { fontSize: 14 }]}>✓ Mark Progress</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Reward Modal */}
+        {showReward && (
+          <Animated.View style={[
+            styles.rewardCard, 
+            { transform: [{ scale: rewardAnim }] },
+            isLandscape && { width: '45%', marginHorizontal: 5, padding: 12 }
+          ]}>
+            <Text style={[styles.rewardEmoji, isLandscape && { fontSize: 28 }]}>🎉🏆🌟</Text>
+            <Text style={[styles.rewardTitle, isLandscape && { fontSize: 18 }]}>Challenge Complete!</Text>
+            <Text style={[styles.rewardText, isLandscape && { fontSize: 12 }]}>You earned a sticker!</Text>
+            
+            <TouchableOpacity onPress={newChallenge} style={[styles.newChallengeButton, isLandscape && { paddingVertical: 10 }]}>
+              <Text style={[styles.newChallengeText, isLandscape && { fontSize: 14 }]}>🎯 New Challenge</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Sticker Collection */}
+        <View style={[
+          styles.stickerSection, 
+          isLandscape && { width: '45%', marginHorizontal: 5, padding: 10 }
+        ]}>
+          <Text style={[styles.stickerTitle, isLandscape && { fontSize: 14 }]}>🎖️ Sticker Collection</Text>
+          <View style={styles.stickerGrid}>
+            {stickers.map((sticker, index) => (
+              <View
+                key={sticker.id}
+                style={[
+                  styles.stickerSlot,
+                  { backgroundColor: RAINBOW_COLORS[index % RAINBOW_COLORS.length] + '30' },
+                  sticker.unlocked && styles.stickerUnlocked,
+                  isLandscape && { width: 35, height: 35 },
+                ]}
+              >
+                <Text style={[styles.stickerEmoji, !sticker.unlocked && styles.stickerLocked, isLandscape && { fontSize: 18 }]}>
+                  {sticker.unlocked ? sticker.emoji : '❓'}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
 
-        {/* Action Button */}
-        {!showReward && (
-          <TouchableOpacity onPress={incrementProgress} style={styles.actionButton}>
-            <Text style={styles.actionText}>✓ Mark Progress</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Reward Modal */}
-      {showReward && (
-        <Animated.View style={[styles.rewardCard, { transform: [{ scale: rewardAnim }] }]}>
-          <Text style={styles.rewardEmoji}>🎉🏆🌟</Text>
-          <Text style={styles.rewardTitle}>Challenge Complete!</Text>
-          <Text style={styles.rewardText}>You earned a sticker!</Text>
-          
-          <TouchableOpacity onPress={newChallenge} style={styles.newChallengeButton}>
-            <Text style={styles.newChallengeText}>🎯 New Challenge</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
-
-      {/* Sticker Collection */}
-      <View style={styles.stickerSection}>
-        <Text style={styles.stickerTitle}>🎖️ Sticker Collection</Text>
-        <View style={styles.stickerGrid}>
-          {stickers.map((sticker, index) => (
-            <View
-              key={sticker.id}
-              style={[
-                styles.stickerSlot,
-                { backgroundColor: RAINBOW_COLORS[index % RAINBOW_COLORS.length] + '30' },
-                sticker.unlocked && styles.stickerUnlocked,
-              ]}
-            >
-              <Text style={[styles.stickerEmoji, !sticker.unlocked && styles.stickerLocked]}>
-                {sticker.unlocked ? sticker.emoji : '❓'}
-              </Text>
-            </View>
-          ))}
+        {/* Tips */}
+        <View style={[styles.tipBox, isLandscape && { width: '90%', marginHorizontal: 5, padding: 8 }]}>
+          <Text style={[styles.tipText, isLandscape && { fontSize: 11 }]}>
+            💡 Complete daily challenges to collect stickers!
+          </Text>
         </View>
-      </View>
-
-      {/* Tips */}
-      <View style={styles.tipBox}>
-        <Text style={styles.tipText}>
-          💡 Complete daily challenges to collect stickers!
-        </Text>
-      </View>
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF5E6' },
+  scrollContent: { paddingBottom: 20 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

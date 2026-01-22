@@ -15,6 +15,7 @@ import { NUMBERS, SHAPES } from '../constants/gameData';
 import { speakLetter, speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +27,7 @@ interface TracingGameScreenProps {
 
 export const TracingGameScreen: React.FC<TracingGameScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { isLandscape } = useResponsiveLayout();
   const [mode, setMode] = useState<TracingMode>('alphabet');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [paths, setPaths] = useState<{ x: number; y: number }[][]>([]);
@@ -112,13 +114,115 @@ export const TracingGameScreen: React.FC<TracingGameScreenProps> = ({ navigation
 
   const item = getCurrentItem();
 
+  // Landscape layout
+  if (isLandscape) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
+        <ScreenHeader
+          title="Tracing"
+          icon={SCREEN_ICONS.pencil}
+          onBack={() => { stopSpeaking(); navigation.goBack(); }}
+          compact={true}
+        />
+
+        <View style={{ flex: 1, flexDirection: 'row', padding: 10, gap: 10 }}>
+          {/* Left Panel - Controls */}
+          <View style={{ width: 200, backgroundColor: '#fff', borderRadius: 20, padding: 15, justifyContent: 'space-between' }}>
+            {/* Mode Selection */}
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#666', textAlign: 'center' }}>Mode:</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
+                {(['alphabet', 'number', 'shape'] as TracingMode[]).map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    style={{ padding: 10, borderRadius: 12, backgroundColor: mode === m ? COLORS.purple : '#E0E0E0' }}
+                    onPress={() => { setMode(m); setCurrentIndex(0); clearCanvas(); }}
+                  >
+                    <Image 
+                      source={m === 'alphabet' ? SCREEN_ICONS.abc : m === 'number' ? SCREEN_ICONS.numbers123 : SCREEN_ICONS.shapes} 
+                      style={{ width: 24, height: 24, tintColor: mode === m ? '#fff' : '#666' }} 
+                      resizeMode="contain" 
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Progress */}
+            <View style={{ alignItems: 'center', marginVertical: 15 }}>
+              <View style={{ width: 80, height: 80, borderRadius: 40, borderWidth: 6, borderColor: COLORS.purple, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.purple }}>{Math.round(tracingProgress)}%</Text>
+              </View>
+            </View>
+
+            {/* Navigation */}
+            <View style={{ gap: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+                <TouchableOpacity onPress={handlePrev} style={{ flex: 1, backgroundColor: '#E0E0E0', padding: 10, borderRadius: 12, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16 }}>◀</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={clearCanvas} style={{ flex: 1, backgroundColor: '#FF6B6B', padding: 10, borderRadius: 12, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>🧹 Clear</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleNext} style={{ flex: 1, backgroundColor: '#E0E0E0', padding: 10, borderRadius: 12, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16 }}>▶</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ backgroundColor: COLORS.purple, padding: 8, borderRadius: 12, alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>{currentIndex + 1} / {getMaxIndex()}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Right Panel - Canvas */}
+          <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden' }}>
+            <Text style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -60 }, { translateY: -80 }], fontSize: 150, fontWeight: '900', color: '#E8E8E8', zIndex: 0 }}>{item.display}</Text>
+            
+            <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+              <View style={StyleSheet.absoluteFill}>
+                {paths.map((path, pathIndex) => (
+                  <View key={pathIndex} style={StyleSheet.absoluteFill}>
+                    {path.map((point, pointIndex) => (
+                      <View
+                        key={pointIndex}
+                        style={{ position: 'absolute', width: 12, height: 12, borderRadius: 6, left: point.x - 6, top: point.y - 6, backgroundColor: RAINBOW_COLORS[pathIndex % RAINBOW_COLORS.length] }}
+                      />
+                    ))}
+                  </View>
+                ))}
+                {currentPath.map((point, index) => (
+                  <View
+                    key={index}
+                    style={{ position: 'absolute', width: 12, height: 12, borderRadius: 6, left: point.x - 6, top: point.y - 6, backgroundColor: COLORS.red }}
+                  />
+                ))}
+              </View>
+            </View>
+            
+            <TouchableOpacity onPress={speakItem} style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#FFD700', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }}>
+              <Image source={SCREEN_ICONS.speaker} style={{ width: 22, height: 22 }} resizeMode="contain" />
+            </TouchableOpacity>
+            
+            <View style={{ position: 'absolute', bottom: 10, left: 0, right: 0, alignItems: 'center' }}>
+              <View style={{ backgroundColor: COLORS.purple, paddingHorizontal: 15, paddingVertical: 6, borderRadius: 12 }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>✏️ Trace with your finger!</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Portrait layout
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* Header */}
       <ScreenHeader
         title="Tracing"
         icon={SCREEN_ICONS.pencil}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
       {/* Mode Selection */}

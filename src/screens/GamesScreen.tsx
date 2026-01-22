@@ -16,6 +16,7 @@ import { speakFeedback, speakCelebration, stopSpeaking } from '../utils/speech';
 import { switchBackgroundMusic } from '../utils/backgroundMusic';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -654,6 +655,7 @@ const QuizGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 export const GamesScreen: React.FC<GamesScreenProps> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const [currentGame, setCurrentGame] = useState<GameType>('menu');
+  const { isLandscape } = useResponsiveLayout();
 
   // Check if we should start a specific game (from Coloring screen)
   useEffect(() => {
@@ -697,17 +699,21 @@ export const GamesScreen: React.FC<GamesScreenProps> = ({ navigation, route }) =
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* Header - only show on menu */}
       {currentGame === 'menu' && (
         <ScreenHeader
           title="ABC Games"
           icon={SCREEN_ICONS.gamepad}
           onBack={() => { stopSpeaking(); navigation.goBack(); }}
+          compact={isLandscape}
         />
       )}
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, isLandscape && { paddingTop: 5, paddingBottom: 20 }]} 
+        showsVerticalScrollIndicator={false}
+      >
         {renderGame()}
       </ScrollView>
     </View>

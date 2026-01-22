@@ -27,7 +27,7 @@ export { FindObjectScreen } from './FindObjectScreen';
 export { DressUpScreen } from './DressUpScreen';
 export { FoodSortingScreen } from './FoodSortingScreen';
 export { BuildGameScreen } from './BuildGameScreen';
-export { PetCareScreen } from './PetCareScreen';
+export { BodyPartsScreen } from './BodyPartsScreen';
 export { CleanRoomScreen } from './CleanRoomScreen';
 export { AnimalHabitatScreen } from './AnimalHabitatScreen';
 export { ReactionGameScreen } from './ReactionGameScreen';

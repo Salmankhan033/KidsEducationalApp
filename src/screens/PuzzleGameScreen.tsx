@@ -7,6 +7,7 @@ import {
   Dimensions,
   Image,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, RAINBOW_COLORS } from '../constants/colors';
@@ -14,6 +15,7 @@ import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { switchBackgroundMusic } from '../utils/backgroundMusic';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -116,6 +118,8 @@ export const PuzzleGameScreen: React.FC<PuzzleGameScreenProps> = ({ navigation }
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
+  
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
   
   // Animations
   const questionScale = useRef(new Animated.Value(0)).current;
@@ -230,121 +234,154 @@ export const PuzzleGameScreen: React.FC<PuzzleGameScreenProps> = ({ navigation }
     celebrationScale.setValue(0);
   };
 
+  const questionSize = isLandscape ? 90 : 130;
+  const optionSize = isLandscape ? 65 : 80;
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* Header */}
       <ScreenHeader
         title="Match Puzzle"
         icon={SCREEN_ICONS.puzzle}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
-      {/* Score */}
-      <View style={styles.scoreRow}>
-        <View style={styles.scoreBox}>
-          <Text style={styles.scoreLabel}>⭐ Score</Text>
-          <Text style={styles.scoreValue}>{score}</Text>
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, isLandscape && { paddingVertical: 5 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Score */}
+        <View style={[styles.scoreRow, isLandscape && { marginBottom: 5 }]}>
+          <View style={[styles.scoreBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 6 }]}>
+            <Text style={[styles.scoreLabel, isLandscape && { fontSize: 11 }]}>⭐ Score</Text>
+            <Text style={[styles.scoreValue, isLandscape && { fontSize: 18 }]}>{score}</Text>
+          </View>
+          <View style={[styles.progressBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 6 }]}>
+            <Text style={[styles.progressText, isLandscape && { fontSize: 12 }]}>{currentPuzzle + 1} / {PUZZLE_DATA.length}</Text>
+          </View>
         </View>
-        <View style={styles.progressBox}>
-          <Text style={styles.progressText}>{currentPuzzle + 1} / {PUZZLE_DATA.length}</Text>
+
+        {/* Instructions */}
+        <View style={[styles.instructionBox, { backgroundColor: puzzle.color }, isLandscape && { paddingVertical: 8, marginBottom: 8 }]}>
+          <Text style={[styles.instructionText, isLandscape && { fontSize: 13 }]}>
+            👆 Find the matching picture!
+          </Text>
         </View>
-      </View>
 
-      {/* Instructions */}
-      <View style={[styles.instructionBox, { backgroundColor: puzzle.color }]}>
-        <Text style={styles.instructionText}>
-          👆 Find the matching picture!
-        </Text>
-      </View>
-
-      {/* Question - The picture to match */}
-      <View style={styles.questionSection}>
-        <Text style={styles.findLabel}>Find this:</Text>
-        <Animated.View 
-          style={[
-            styles.questionCard,
-            { 
-              backgroundColor: puzzle.color,
-              transform: [
-                { scale: questionScale },
-                { translateY: bounceAnim },
-              ],
-            }
-          ]}
-        >
-          <Text style={styles.questionEmoji}>{puzzle.question}</Text>
-        </Animated.View>
-        <Text style={styles.questionName}>{puzzle.questionName}</Text>
-      </View>
-
-      {/* Options Grid - 2x2 */}
-      <View style={styles.optionsContainer}>
-        <Animated.View 
-          style={[
-            styles.optionsGrid,
-            { transform: [{ translateX: shakeAnim }] }
-          ]}
-        >
-          {puzzle.options.map((option, index) => {
-            const isSelected = selectedOption === index;
-            const isCorrectOption = index === puzzle.correctIndex;
-            const showResult = selectedOption !== null;
-            
-            let borderColor = '#E0E0E0';
-            let backgroundColor = '#FFFFFF';
-            
-            if (showResult && isSelected) {
-              if (isCorrect) {
-                borderColor = '#4CAF50';
-                backgroundColor = '#E8F5E9';
-              } else {
-                borderColor = '#F44336';
-                backgroundColor = '#FFEBEE';
+        {/* Question - The picture to match */}
+        <View style={[styles.questionSection, isLandscape && { marginBottom: 10 }]}>
+          <Text style={[styles.findLabel, isLandscape && { fontSize: 14, marginBottom: 6 }]}>Find this:</Text>
+          <Animated.View 
+            style={[
+              styles.questionCard,
+              { 
+                backgroundColor: puzzle.color,
+                width: questionSize,
+                height: questionSize,
+                borderRadius: isLandscape ? 16 : 25,
+                transform: [
+                  { scale: questionScale },
+                  { translateY: bounceAnim },
+                ],
               }
-            }
-            
-            return (
-              <Animated.View
-                key={index}
-                style={[
-                  styles.optionWrapper,
-                  { 
-                    transform: [{ scale: optionAnims[index] }],
-                    opacity: optionAnims[index],
-                  }
-                ]}
-              >
-                <TouchableOpacity
-                  onPress={() => handleOptionPress(index)}
+            ]}
+          >
+            <Text style={[styles.questionEmoji, { fontSize: questionSize * 0.55 }]}>{puzzle.question}</Text>
+          </Animated.View>
+          <Text style={[styles.questionName, isLandscape && { fontSize: 16 }]}>{puzzle.questionName}</Text>
+        </View>
+
+        {/* Options Grid - 2x2 or 4x1 in landscape */}
+        <View style={[styles.optionsContainer, isLandscape && { marginBottom: 10 }]}>
+          <Animated.View 
+            style={[
+              styles.optionsGrid,
+              { transform: [{ translateX: shakeAnim }] },
+              isLandscape && { flexDirection: 'row', flexWrap: 'nowrap', gap: 8 }
+            ]}
+          >
+            {puzzle.options.map((option, index) => {
+              const isSelected = selectedOption === index;
+              const isCorrectOption = index === puzzle.correctIndex;
+              const showResult = selectedOption !== null;
+              
+              let borderColor = '#E0E0E0';
+              let backgroundColor = '#FFFFFF';
+              
+              if (showResult && isSelected) {
+                if (isCorrect) {
+                  borderColor = '#4CAF50';
+                  backgroundColor = '#E8F5E9';
+                } else {
+                  borderColor = '#F44336';
+                  backgroundColor = '#FFEBEE';
+                }
+              }
+              
+              return (
+                <Animated.View
+                  key={index}
                   style={[
-                    styles.optionCard,
+                    styles.optionWrapper,
                     { 
-                      borderColor,
-                      backgroundColor,
-                    },
+                      transform: [{ scale: optionAnims[index] }],
+                      opacity: optionAnims[index],
+                      width: optionSize,
+                      height: optionSize,
+                    }
                   ]}
-                  disabled={selectedOption !== null && isCorrect}
-                  activeOpacity={0.7}
                 >
-                  <Text style={styles.optionEmoji}>{option}</Text>
-                  
-                  {/* Checkmark or X indicator */}
-                  {showResult && isSelected && (
-                    <View style={[
-                      styles.resultBadge,
-                      { backgroundColor: isCorrect ? '#4CAF50' : '#F44336' }
-                    ]}>
-                      <Text style={styles.resultBadgeText}>
-                        {isCorrect ? '✓' : '✗'}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </Animated.View>
-            );
-          })}
-        </Animated.View>
-      </View>
+                  <TouchableOpacity
+                    onPress={() => handleOptionPress(index)}
+                    style={[
+                      styles.optionCard,
+                      { 
+                        borderColor,
+                        backgroundColor,
+                        borderRadius: isLandscape ? 14 : 20,
+                      },
+                    ]}
+                    disabled={selectedOption !== null && isCorrect}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.optionEmoji, { fontSize: optionSize * 0.5 }]}>{option}</Text>
+                    
+                    {/* Checkmark or X indicator */}
+                    {showResult && isSelected && (
+                      <View style={[
+                        styles.resultBadge,
+                        { backgroundColor: isCorrect ? '#4CAF50' : '#F44336' },
+                        isLandscape && { width: 20, height: 20 }
+                      ]}>
+                        <Text style={[styles.resultBadgeText, isLandscape && { fontSize: 10 }]}>
+                          {isCorrect ? '✓' : '✗'}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            })}
+          </Animated.View>
+        </View>
+
+        {/* Bottom Buttons */}
+        <View style={[styles.buttonRow, isLandscape && { gap: 15 }]}>
+          <TouchableOpacity onPress={resetGame} style={[styles.resetButton, isLandscape && { paddingHorizontal: 16, paddingVertical: 8 }]}>
+            <Text style={[styles.buttonEmoji, isLandscape && { fontSize: 16 }]}>🔄</Text>
+            <Text style={[styles.buttonText, isLandscape && { fontSize: 12 }]}>Start Over</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={nextPuzzle} 
+            style={[styles.nextButton, isLandscape && { paddingHorizontal: 16, paddingVertical: 8 }]}
+          >
+            <Text style={[styles.buttonEmoji, isLandscape && { fontSize: 16 }]}>➡️</Text>
+            <Text style={[styles.buttonText, isLandscape && { fontSize: 12 }]}>Next</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
       {/* Celebration Overlay */}
       {showCelebration && (
@@ -354,36 +391,22 @@ export const PuzzleGameScreen: React.FC<PuzzleGameScreenProps> = ({ navigation }
             { transform: [{ scale: celebrationScale }] }
           ]}
         >
-          <View style={styles.celebrationCard}>
-            <Text style={styles.celebrationEmoji}>🎉</Text>
-            <Text style={styles.celebrationText}>Great Job!</Text>
-            <Text style={styles.celebrationSubtext}>You found the {puzzle.questionName}!</Text>
+          <View style={[styles.celebrationCard, isLandscape && { padding: 20 }]}>
+            <Text style={[styles.celebrationEmoji, isLandscape && { fontSize: 50 }]}>🎉</Text>
+            <Text style={[styles.celebrationText, isLandscape && { fontSize: 22 }]}>Great Job!</Text>
+            <Text style={[styles.celebrationSubtext, isLandscape && { fontSize: 14 }]}>You found the {puzzle.questionName}!</Text>
           </View>
         </Animated.View>
       )}
 
-      {/* Bottom Buttons */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity onPress={resetGame} style={styles.resetButton}>
-          <Text style={styles.buttonEmoji}>🔄</Text>
-          <Text style={styles.buttonText}>Start Over</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          onPress={nextPuzzle} 
-          style={styles.nextButton}
-        >
-          <Text style={styles.buttonEmoji}>➡️</Text>
-          <Text style={styles.buttonText}>Next</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Decorative elements */}
-      <View style={styles.decorContainer}>
-        <Text style={styles.decorEmoji1}>🧩</Text>
-        <Text style={styles.decorEmoji2}>✨</Text>
-        <Text style={styles.decorEmoji3}>🌟</Text>
-      </View>
+      {!isLandscape && (
+        <View style={styles.decorContainer}>
+          <Text style={styles.decorEmoji1}>🧩</Text>
+          <Text style={styles.decorEmoji2}>✨</Text>
+          <Text style={styles.decorEmoji3}>🌟</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -392,6 +415,10 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: '#E8F6FF',
+  },
+  scrollContent: {
+    paddingBottom: 20,
+    alignItems: 'center',
   },
   scoreRow: {
     flexDirection: 'row',

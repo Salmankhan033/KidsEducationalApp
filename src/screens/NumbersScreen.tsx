@@ -18,6 +18,7 @@ import { NUMBERS } from '../constants/gameData';
 import { speakNumber, stopSpeaking, speakCelebration, speakWord } from '../utils/speech';
 import { SCREEN_ICONS } from '../assets/images';
 import { MuteButton } from '../components';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 // Tab Type
 type TabType = 'learn' | 'write' | 'count';
@@ -241,6 +242,8 @@ interface FlashcardProps {
   onNext: () => void;
   hasPrevious: boolean;
   hasNext: boolean;
+  isLandscape?: boolean;
+  screenWidth?: number;
 }
 
 const Flashcard: React.FC<FlashcardProps> = ({
@@ -250,6 +253,8 @@ const Flashcard: React.FC<FlashcardProps> = ({
   onNext,
   hasPrevious,
   hasNext,
+  isLandscape = false,
+  screenWidth = width,
 }) => {
   const cardAnim = useRef(new Animated.Value(0)).current;
   const balloonBounce = useRef(new Animated.Value(0)).current;
@@ -258,6 +263,17 @@ const Flashcard: React.FC<FlashcardProps> = ({
   const balloonColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
   const num = numberData.num;
+  
+  // Responsive dimensions
+  const cardWidth = isLandscape ? screenWidth * 0.7 : screenWidth - 30;
+  const balloonSize = isLandscape ? { width: 45, height: 55 } : { width: 55, height: 65 };
+  const fontSize = {
+    numberHighlight: isLandscape ? 36 : 48,
+    word: isLandscape ? 24 : 30,
+    forText: isLandscape ? 22 : 28,
+    objects: isLandscape ? 28 : 36,
+    activityTitle: isLandscape ? 16 : 20,
+  };
 
   useEffect(() => {
     scrollViewRef.current?.scrollTo({ y: 0, animated: false });
@@ -291,18 +307,85 @@ const Flashcard: React.FC<FlashcardProps> = ({
     return examples.slice(0, 3); // Max 3 examples
   };
 
+  // Helper to render balloon - inline for landscape, absolute for portrait
+  const renderBalloon = (emoji: string, color: string, title: string) => {
+    if (isLandscape) {
+      return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <Animated.View style={[{ transform: [{ translateY: balloonBounce }], marginRight: 10 }]}>
+            <View style={[styles.balloon, { backgroundColor: color, width: 40, height: 50, borderRadius: 20 }]}>
+              <Text style={[styles.balloonNumber, { fontSize: 18 }]}>{emoji}</Text>
+            </View>
+            <View style={[styles.balloonTail, { borderTopColor: color }]} />
+          </Animated.View>
+          <Text style={[styles.activityTitle, { marginTop: 0, marginBottom: 0, fontSize: 14, flex: 1 }]}>{title}</Text>
+        </View>
+      );
+    }
+    return (
+      <>
+        <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
+          <View style={[styles.balloon, { backgroundColor: color }]}>
+            <Text style={styles.balloonNumber}>{emoji}</Text>
+          </View>
+          <View style={[styles.balloonTail, { borderTopColor: color }]} />
+          <View style={styles.balloonString} />
+        </Animated.View>
+        <Text style={styles.activityTitle}>{title}</Text>
+      </>
+    );
+  };
+
+  // Responsive activity card style
+  const activityCardStyle = {
+    width: cardWidth,
+    padding: isLandscape ? 12 : 20,
+    borderRadius: isLandscape ? 15 : 22,
+    borderWidth: isLandscape ? 3 : 4,
+    marginBottom: isLandscape ? 0 : 18,
+  };
+
   return (
     <ScrollView
       ref={scrollViewRef}
       style={styles.flashcardScroll}
-      contentContainerStyle={styles.flashcardScrollContent}
+      contentContainerStyle={[styles.flashcardScrollContent, isLandscape && { paddingTop: 20, paddingBottom: 20 }]}
       showsVerticalScrollIndicator={false}
+      horizontal={isLandscape}
+      showsHorizontalScrollIndicator={false}
     >
       <Animated.View
-        style={[styles.flashcardContainer, { transform: [{ scale: cardAnim }], opacity: cardAnim }]}
+        style={[
+          styles.flashcardContainer, 
+          { transform: [{ scale: cardAnim }], opacity: cardAnim },
+          isLandscape && { flexDirection: 'row', alignItems: 'flex-start', gap: 15 }
+        ]}
       >
         {/* SECTION 1: Number Card */}
-        <View style={[styles.sectionCard, { borderColor: borderColor }]}>
+        <View style={[
+          styles.sectionCard, 
+          { borderColor: borderColor, width: cardWidth },
+          isLandscape && { padding: 15, borderRadius: 18, borderWidth: 4, marginBottom: 0, minHeight: 200 }
+        ]}>
+          {/* Landscape: inline balloon layout */}
+          {isLandscape ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 10 }}>
+              <Animated.View style={[{ transform: [{ translateY: balloonBounce }], marginRight: 15 }]}>
+                <View style={[styles.balloon, { backgroundColor: balloonColor, width: balloonSize.width, height: balloonSize.height, borderRadius: balloonSize.width / 2 }]}>
+                  <Text style={[styles.balloonNumber, { fontSize: 22 }]}>{numberData.num}</Text>
+                </View>
+                <View style={[styles.balloonTail, { borderTopColor: balloonColor }]} />
+              </Animated.View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.forText, { fontSize: fontSize.forText, marginTop: 0, marginBottom: 5 }]}>
+                  <Text style={[styles.numberHighlight, { color: balloonColor, fontSize: fontSize.numberHighlight }]}>{numberData.num}</Text>
+                  {' = '}
+                  <Text style={[styles.wordHighlight, { fontSize: fontSize.word }]}>{numberData.word}</Text>
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <>
           <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
             <View style={[styles.balloon, { backgroundColor: balloonColor }]}>
               <Text style={styles.balloonNumber}>{numberData.num}</Text>
@@ -316,239 +399,185 @@ const Flashcard: React.FC<FlashcardProps> = ({
             {' = '}
             <Text style={styles.wordHighlight}>{numberData.word}</Text>
           </Text>
+            </>
+          )}
 
-          <View style={styles.objectsDisplayContainer}>
-            <Text style={styles.objectsDisplay}>{numberData.objects}</Text>
+          <View style={[styles.objectsDisplayContainer, isLandscape && { padding: 12, marginBottom: 10 }]}>
+            <Text style={[styles.objectsDisplay, { fontSize: fontSize.objects }]}>{numberData.objects}</Text>
           </View>
 
           <TouchableOpacity
             onPress={() => speakNumber(numberData.num)}
-            style={[styles.listenBtn, { backgroundColor: balloonColor }]}
+            style={[styles.listenBtn, { backgroundColor: balloonColor }, isLandscape && { width: 50, height: 50, borderRadius: 25 }]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconLarge} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconLarge, isLandscape && { width: 24, height: 24 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 2: Finger Counting */}
-        <View style={[styles.activityCard, { borderColor: '#E91E63' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#E91E63' }]}>
-              <Text style={styles.balloonNumber}>✋</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#E91E63' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
-
-          <Text style={styles.activityTitle}>✋ Show with Fingers!</Text>
+        <View style={[styles.activityCard, { borderColor: '#E91E63' }, activityCardStyle]}>
+          {renderBalloon('✋', '#E91E63', '✋ Show with Fingers!')}
           
-          <View style={styles.fingerDisplayBox}>
-            <Text style={styles.fingerEmoji}>{FINGER_COUNT[num]}</Text>
+          <View style={[styles.fingerDisplayBox, isLandscape && { paddingHorizontal: 25, paddingVertical: 12 }]}>
+            <Text style={[styles.fingerEmoji, isLandscape && { fontSize: 40 }]}>{FINGER_COUNT[num]}</Text>
           </View>
           
-          <Text style={styles.activitySubtext}>
+          <Text style={[styles.activitySubtext, isLandscape && { fontSize: 13, marginBottom: 8 }]}>
             Hold up {num} {num === 1 ? 'finger' : 'fingers'}!
           </Text>
 
           <TouchableOpacity
             onPress={() => speakWord(`Show ${num} ${num === 1 ? 'finger' : 'fingers'}`)}
-            style={[styles.smallListenBtn, { backgroundColor: '#E91E63' }]}
+            style={[styles.smallListenBtn, { backgroundColor: '#E91E63' }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconSmall} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconSmall, isLandscape && { width: 18, height: 18 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 3: Count with me */}
-        <View style={[styles.activityCard, { borderColor: COUNTING_OBJECTS[num].color }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: COUNTING_OBJECTS[num].color }]}>
-              <Text style={styles.balloonNumber}>{COUNTING_OBJECTS[num].emoji}</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: COUNTING_OBJECTS[num].color }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
+        <View style={[styles.activityCard, { borderColor: COUNTING_OBJECTS[num].color }, activityCardStyle]}>
+          {renderBalloon(COUNTING_OBJECTS[num].emoji, COUNTING_OBJECTS[num].color, `🎯 Count the ${COUNTING_OBJECTS[num].name}s!`)}
 
-          <Text style={styles.activityTitle}>🎯 Count the {COUNTING_OBJECTS[num].name}s!</Text>
-
-          <View style={styles.countingRow}>
+          <View style={[styles.countingRow, isLandscape && { gap: 6, marginBottom: 10 }]}>
             {Array.from({ length: num }, (_, i) => (
               <View key={i} style={styles.countingItem}>
-                <Text style={styles.countingEmoji}>{COUNTING_OBJECTS[num].emoji}</Text>
-                <Text style={styles.countingNumber}>{i + 1}</Text>
+                <Text style={[styles.countingEmoji, isLandscape && { fontSize: 24 }]}>{COUNTING_OBJECTS[num].emoji}</Text>
+                <Text style={[styles.countingNumber, isLandscape && { fontSize: 11 }]}>{i + 1}</Text>
               </View>
             ))}
           </View>
 
-          <View style={styles.resultTextBox}>
-            <Text style={styles.resultText}>
+          <View style={[styles.resultTextBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 }]}>
+            <Text style={[styles.resultText, isLandscape && { fontSize: 14 }]}>
               " {num} {num === 1 ? COUNTING_OBJECTS[num].name : COUNTING_OBJECTS[num].name + 's'}! "
             </Text>
           </View>
 
           <TouchableOpacity
             onPress={() => speakWord(`${num} ${num === 1 ? COUNTING_OBJECTS[num].name : COUNTING_OBJECTS[num].name + 's'}`)}
-            style={[styles.smallListenBtn, { backgroundColor: COUNTING_OBJECTS[num].color }]}
+            style={[styles.smallListenBtn, { backgroundColor: COUNTING_OBJECTS[num].color }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconSmall} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconSmall, isLandscape && { width: 18, height: 18 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 3.5: Collect Items */}
-        <View style={[styles.activityCard, { borderColor: '#1ABC9C' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#1ABC9C' }]}>
-              <Text style={styles.balloonNumber}>🧺</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#1ABC9C' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
+        <View style={[styles.activityCard, { borderColor: '#1ABC9C' }, activityCardStyle]}>
+          {renderBalloon('🧺', '#1ABC9C', `🧺 Collect ${num} ${ACTIVITY_ITEMS[num].collect.name}s!`)}
 
-          <Text style={styles.activityTitle}>🧺 Collect {num} {ACTIVITY_ITEMS[num].collect.name}s!</Text>
-
-          <View style={styles.collectContainer}>
+          <View style={[styles.collectContainer, isLandscape && { marginBottom: 8 }]}>
             <View style={styles.basketRow}>
               {Array.from({ length: num }, (_, i) => (
-                <Text key={i} style={styles.collectEmoji}>{ACTIVITY_ITEMS[num].collect.emoji}</Text>
+                <Text key={i} style={[styles.collectEmoji, isLandscape && { fontSize: 24 }]}>{ACTIVITY_ITEMS[num].collect.emoji}</Text>
               ))}
             </View>
             <View style={styles.basketIcon}>
-              <Text style={styles.basketEmoji}>🧺</Text>
+              <Text style={[styles.basketEmoji, isLandscape && { fontSize: 32 }]}>🧺</Text>
             </View>
           </View>
 
-          <View style={styles.resultTextBox}>
-            <Text style={styles.resultText}>
+          <View style={[styles.resultTextBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 }]}>
+            <Text style={[styles.resultText, isLandscape && { fontSize: 14 }]}>
               I collected {num} {ACTIVITY_ITEMS[num].collect.name}{num > 1 ? 's' : ''}!
             </Text>
           </View>
 
           <TouchableOpacity
             onPress={() => speakWord(`I collected ${num} ${ACTIVITY_ITEMS[num].collect.name}${num > 1 ? 's' : ''}`)}
-            style={[styles.smallListenBtn, { backgroundColor: '#1ABC9C' }]}
+            style={[styles.smallListenBtn, { backgroundColor: '#1ABC9C' }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconSmall} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconSmall, isLandscape && { width: 18, height: 18 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 3.7: Count Animals */}
-        <View style={[styles.activityCard, { borderColor: '#F39C12' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#F39C12' }]}>
-              <Text style={styles.balloonNumber}>🐾</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#F39C12' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
+        <View style={[styles.activityCard, { borderColor: '#F39C12' }, activityCardStyle]}>
+          {renderBalloon('🐾', '#F39C12', `🐾 Count ${num} ${ACTIVITY_ITEMS[num].count.name}${num > 1 ? 's' : ''}!`)}
 
-          <Text style={styles.activityTitle}>🐾 Count {num} {ACTIVITY_ITEMS[num].count.name}{num > 1 ? 's' : ''}!</Text>
-
-          <View style={styles.animalContainer}>
+          <View style={[styles.animalContainer, isLandscape && { marginBottom: 8 }]}>
             {Array.from({ length: num }, (_, i) => (
               <View key={i} style={styles.animalItem}>
-                <Text style={styles.animalEmoji}>{ACTIVITY_ITEMS[num].count.emoji}</Text>
+                <Text style={[styles.animalEmoji, isLandscape && { fontSize: 26 }]}>{ACTIVITY_ITEMS[num].count.emoji}</Text>
               </View>
             ))}
           </View>
 
           <TouchableOpacity
             onPress={() => speakWord(`${num} ${ACTIVITY_ITEMS[num].count.name}${num > 1 ? 's' : ''}`)}
-            style={[styles.smallListenBtn, { backgroundColor: '#F39C12' }]}
+            style={[styles.smallListenBtn, { backgroundColor: '#F39C12' }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconSmall} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconSmall, isLandscape && { width: 18, height: 18 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 4: Yummy Food */}
-        <View style={[styles.activityCard, { borderColor: '#E91E63' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#E91E63' }]}>
-              <Text style={styles.balloonNumber}>🍽️</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#E91E63' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
+        <View style={[styles.activityCard, { borderColor: '#E91E63' }, activityCardStyle]}>
+          {renderBalloon('🍽️', '#E91E63', `🍽️ Yummy! ${num} ${ACTIVITY_ITEMS[num].share.name}${num > 1 ? 's' : ''}!`)}
 
-          <Text style={styles.activityTitle}>🍽️ Yummy! {num} {ACTIVITY_ITEMS[num].share.name}{num > 1 ? 's' : ''}!</Text>
-
-          <View style={styles.foodContainer}>
+          <View style={[styles.foodContainer, isLandscape && { marginBottom: 8 }]}>
             <View style={styles.plateIcon}>
-              <Text style={styles.plateEmoji}>🍽️</Text>
+              <Text style={[styles.plateEmoji, isLandscape && { fontSize: 32 }]}>🍽️</Text>
             </View>
             <View style={styles.foodRow}>
               {Array.from({ length: num }, (_, i) => (
-                <Text key={i} style={styles.foodEmoji}>{ACTIVITY_ITEMS[num].share.emoji}</Text>
+                <Text key={i} style={[styles.foodEmoji, isLandscape && { fontSize: 26 }]}>{ACTIVITY_ITEMS[num].share.emoji}</Text>
               ))}
             </View>
           </View>
 
-          <View style={[styles.resultTextBox, { borderColor: '#E91E63' }]}>
-            <Text style={styles.resultText}>
+          <View style={[styles.resultTextBox, { borderColor: '#E91E63' }, isLandscape && { paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 }]}>
+            <Text style={[styles.resultText, isLandscape && { fontSize: 14 }]}>
               Yum! {num} yummy {ACTIVITY_ITEMS[num].share.name}{num > 1 ? 's' : ''}! 😋
             </Text>
           </View>
 
           <TouchableOpacity
             onPress={() => speakWord(`Yum! ${num} yummy ${ACTIVITY_ITEMS[num].share.name}${num > 1 ? 's' : ''}`)}
-            style={[styles.smallListenBtn, { backgroundColor: '#E91E63' }]}
+            style={[styles.smallListenBtn, { backgroundColor: '#E91E63' }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconSmall} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconSmall, isLandscape && { width: 18, height: 18 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 5: Real Life Examples */}
-        <View style={[styles.activityCard, { borderColor: '#27AE60' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#27AE60' }]}>
-              <Text style={styles.balloonNumber}>🌍</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#27AE60' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
-
-          <Text style={styles.activityTitle}>🌍 In Real Life!</Text>
+        <View style={[styles.activityCard, { borderColor: '#27AE60' }, activityCardStyle]}>
+          {renderBalloon('🌍', '#27AE60', '🌍 In Real Life!')}
           
-          <View style={styles.examplesContainer}>
+          <View style={[styles.examplesContainer, isLandscape && { gap: 6 }]}>
             {REAL_LIFE_EXAMPLES[num]?.map((example, idx) => (
               <TouchableOpacity 
                 key={idx} 
-                style={styles.exampleItem}
+                style={[styles.exampleItem, isLandscape && { paddingVertical: 8, paddingHorizontal: 12 }]}
                 onPress={() => speakWord(example.text)}
               >
-                <Text style={styles.exampleEmoji}>{example.emoji}</Text>
-                <Text style={styles.exampleText}>{example.text}</Text>
+                <Text style={[styles.exampleEmoji, isLandscape && { fontSize: 22 }]}>{example.emoji}</Text>
+                <Text style={[styles.exampleText, isLandscape && { fontSize: 13 }]}>{example.text}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
         {/* SECTION 5: Simple Addition */}
-        <View style={[styles.activityCard, { borderColor: '#3498DB' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#3498DB' }]}>
-              <Text style={styles.balloonNumber}>➕</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#3498DB' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
-
-          <Text style={styles.activityTitle}>➕ Make {num}!</Text>
+        <View style={[styles.activityCard, { borderColor: '#3498DB' }, activityCardStyle]}>
+          {renderBalloon('➕', '#3498DB', `➕ Make ${num}!`)}
           
-          <View style={styles.mathContainer}>
+          <View style={[styles.mathContainer, isLandscape && { gap: 6 }]}>
             {getAdditionExamples().map((ex, idx) => (
               <TouchableOpacity 
                 key={idx} 
-                style={styles.mathRow}
+                style={[styles.mathRow, isLandscape && { marginBottom: 4 }]}
                 onPress={() => speakWord(`${ex.a} plus ${ex.b} equals ${num}`)}
               >
-                <View style={[styles.mathBubble, { backgroundColor: '#E74C3C' }]}>
-                  <Text style={styles.mathNumber}>{ex.a}</Text>
+                <View style={[styles.mathBubble, { backgroundColor: '#E74C3C' }, isLandscape && { width: 32, height: 32, borderRadius: 16 }]}>
+                  <Text style={[styles.mathNumber, isLandscape && { fontSize: 16 }]}>{ex.a}</Text>
                 </View>
-                <Text style={styles.mathOperator}>+</Text>
-                <View style={[styles.mathBubble, { backgroundColor: '#27AE60' }]}>
-                  <Text style={styles.mathNumber}>{ex.b}</Text>
+                <Text style={[styles.mathOperator, isLandscape && { fontSize: 18 }]}>+</Text>
+                <View style={[styles.mathBubble, { backgroundColor: '#27AE60' }, isLandscape && { width: 32, height: 32, borderRadius: 16 }]}>
+                  <Text style={[styles.mathNumber, isLandscape && { fontSize: 16 }]}>{ex.b}</Text>
                 </View>
-                <Text style={styles.mathOperator}>=</Text>
-                <View style={[styles.mathBubble, { backgroundColor: '#3498DB' }]}>
-                  <Text style={styles.mathNumber}>{num}</Text>
+                <Text style={[styles.mathOperator, isLandscape && { fontSize: 18 }]}>=</Text>
+                <View style={[styles.mathBubble, { backgroundColor: '#3498DB' }, isLandscape && { width: 32, height: 32, borderRadius: 16 }]}>
+                  <Text style={[styles.mathNumber, isLandscape && { fontSize: 16 }]}>{num}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -556,73 +585,58 @@ const Flashcard: React.FC<FlashcardProps> = ({
         </View>
 
         {/* SECTION 6: Number Neighbors */}
-        <View style={[styles.activityCard, { borderColor: '#9B59B6' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#9B59B6' }]}>
-              <Text style={styles.balloonNumber}>🔢</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#9B59B6' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
-
-          <Text style={styles.activityTitle}>🔢 Number Neighbors!</Text>
+        <View style={[styles.activityCard, { borderColor: '#9B59B6' }, activityCardStyle]}>
+          {renderBalloon('🔢', '#9B59B6', '🔢 Number Neighbors!')}
           
-          <View style={styles.neighborsContainer}>
+          <View style={[styles.neighborsContainer, isLandscape && { gap: 15, marginBottom: 8 }]}>
             <View style={styles.neighborBox}>
-              <Text style={styles.neighborLabel}>Before</Text>
-              <View style={[styles.neighborCircle, { backgroundColor: '#95A5A6' }]}>
-                <Text style={styles.neighborNumber}>{num > 1 ? num - 1 : '—'}</Text>
+              <Text style={[styles.neighborLabel, isLandscape && { fontSize: 10 }]}>Before</Text>
+              <View style={[styles.neighborCircle, { backgroundColor: '#95A5A6' }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}>
+                <Text style={[styles.neighborNumber, isLandscape && { fontSize: 18 }]}>{num > 1 ? num - 1 : '—'}</Text>
               </View>
             </View>
             
             <View style={styles.neighborBox}>
-              <Text style={styles.neighborLabel}>Number</Text>
-              <View style={[styles.neighborCircle, { backgroundColor: balloonColor }]}>
-                <Text style={styles.neighborNumber}>{num}</Text>
+              <Text style={[styles.neighborLabel, isLandscape && { fontSize: 10 }]}>Number</Text>
+              <View style={[styles.neighborCircle, { backgroundColor: balloonColor }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}>
+                <Text style={[styles.neighborNumber, isLandscape && { fontSize: 18 }]}>{num}</Text>
               </View>
             </View>
             
             <View style={styles.neighborBox}>
-              <Text style={styles.neighborLabel}>After</Text>
-              <View style={[styles.neighborCircle, { backgroundColor: '#95A5A6' }]}>
-                <Text style={styles.neighborNumber}>{num < 10 ? num + 1 : '—'}</Text>
+              <Text style={[styles.neighborLabel, isLandscape && { fontSize: 10 }]}>After</Text>
+              <View style={[styles.neighborCircle, { backgroundColor: '#95A5A6' }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}>
+                <Text style={[styles.neighborNumber, isLandscape && { fontSize: 18 }]}>{num < 10 ? num + 1 : '—'}</Text>
               </View>
             </View>
           </View>
 
           <TouchableOpacity
             onPress={() => speakWord(`${num > 1 ? num - 1 : ''}, ${num}, ${num < 10 ? num + 1 : ''}`)}
-            style={[styles.smallListenBtn, { backgroundColor: '#9B59B6' }]}
+            style={[styles.smallListenBtn, { backgroundColor: '#9B59B6' }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconSmall} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconSmall, isLandscape && { width: 18, height: 18 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 7: Fun Fact */}
-        <View style={[styles.activityCard, { borderColor: '#FF5722', backgroundColor: '#FFF3E0' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#FF5722' }]}>
-              <Text style={styles.balloonNumber}>💡</Text>
-            </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#FF5722' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
-
-          <Text style={styles.activityTitle}>💡 Fun Fact!</Text>
+        <View style={[styles.activityCard, { borderColor: '#FF5722', backgroundColor: '#FFF3E0' }, activityCardStyle]}>
+          {renderBalloon('💡', '#FF5722', '💡 Fun Fact!')}
           
-          <View style={styles.funFactBox}>
-            <Text style={styles.funFactText}>{FUN_FACTS[num]}</Text>
+          <View style={[styles.funFactBox, isLandscape && { padding: 10, marginBottom: 8 }]}>
+            <Text style={[styles.funFactText, isLandscape && { fontSize: 13 }]}>{FUN_FACTS[num]}</Text>
           </View>
 
           <TouchableOpacity
             onPress={() => speakWord(FUN_FACTS[num])}
-            style={[styles.smallListenBtn, { backgroundColor: '#FF5722' }]}
+            style={[styles.smallListenBtn, { backgroundColor: '#FF5722' }, isLandscape && { width: 40, height: 40, borderRadius: 20 }]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconSmall} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconSmall, isLandscape && { width: 18, height: 18 }]} />
           </TouchableOpacity>
         </View>
 
-        {/* Navigation */}
+        {/* Navigation - Only show in portrait */}
+        {!isLandscape && (
         <View style={styles.navigationRow}>
           <TouchableOpacity
             onPress={() => { stopSpeaking(); onPrevious(); }}
@@ -644,7 +658,33 @@ const Flashcard: React.FC<FlashcardProps> = ({
             <Text style={styles.navArrowText}>▶</Text>
           </TouchableOpacity>
         </View>
+        )}
       </Animated.View>
+      
+      {/* Landscape Navigation - Vertical at the end */}
+      {isLandscape && (
+        <View style={{ justifyContent: 'center', alignItems: 'center', paddingHorizontal: 10 }}>
+          <TouchableOpacity
+            onPress={() => { stopSpeaking(); onPrevious(); }}
+            style={[styles.navArrowBtn, { marginBottom: 10, width: 45, height: 45 }, !hasPrevious && styles.navArrowDisabled]}
+            disabled={!hasPrevious}
+          >
+            <Text style={[styles.navArrowText, { fontSize: 18 }]}>◀</Text>
+          </TouchableOpacity>
+
+          <View style={[styles.progressBox, { paddingHorizontal: 12, paddingVertical: 6 }]}>
+            <Text style={[styles.progressText, { fontSize: 12 }]}>{index + 1}/{NUMBERS.length}</Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => { stopSpeaking(); onNext(); }}
+            style={[styles.navArrowBtn, { marginTop: 10, width: 45, height: 45 }, !hasNext && styles.navArrowDisabled]}
+            disabled={!hasNext}
+          >
+            <Text style={[styles.navArrowText, { fontSize: 18 }]}>▶</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -654,9 +694,11 @@ interface GridCardProps {
   numberData: NumberData;
   index: number;
   onPress: () => void;
+  cardWidth: number;
+  isLandscape: boolean;
 }
 
-const GridCard: React.FC<GridCardProps> = ({ numberData, index, onPress }) => {
+const GridCard: React.FC<GridCardProps> = ({ numberData, index, onPress, cardWidth, isLandscape }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const balloonColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
@@ -665,25 +707,34 @@ const GridCard: React.FC<GridCardProps> = ({ numberData, index, onPress }) => {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      delay: index * 25,
+      delay: index * 15,
       tension: 60,
       friction: 8,
     }).start();
   }, [scaleAnim, index]);
 
+  const balloonSize = isLandscape ? 36 : 50;
+
   return (
-    <Animated.View style={[styles.gridCard, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[styles.gridCard, { width: cardWidth, transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[styles.gridCardInner, { borderColor: borderColor }]}
+        style={[
+          styles.gridCardInner, 
+          { borderColor: borderColor },
+          isLandscape && { borderRadius: 14, borderWidth: 3, padding: 8 },
+        ]}
         activeOpacity={0.8}
       >
-        <View style={[styles.gridBalloon, { backgroundColor: balloonColor }]}>
-          <Text style={styles.gridBalloonNumber}>{numberData.num}</Text>
+        <View style={[
+          styles.gridBalloon, 
+          { backgroundColor: balloonColor, width: balloonSize, height: balloonSize + 8, borderRadius: balloonSize / 2 }
+        ]}>
+          <Text style={[styles.gridBalloonNumber, isLandscape && { fontSize: 20 }]}>{numberData.num}</Text>
         </View>
 
-        <Text style={styles.gridWord}>{numberData.word}</Text>
-        <Text style={styles.gridObjects}>{numberData.objects}</Text>
+        <Text style={[styles.gridWord, isLandscape && { fontSize: 12, marginTop: 4 }]}>{numberData.word}</Text>
+        <Text style={[styles.gridObjects, isLandscape && { fontSize: 16, marginTop: 2 }]}>{numberData.objects}</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -696,6 +747,7 @@ interface CountGameProps {
 }
 
 const CountGame: React.FC<CountGameProps> = ({ score, setScore }) => {
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
   const [countQuestion, setCountQuestion] = useState<{ count: number; emoji: string; options: number[] } | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
@@ -851,8 +903,329 @@ const CountGame: React.FC<CountGameProps> = ({ score, setScore }) => {
     return { backgroundColor: baseColor };
   };
 
+  // Responsive dimensions for landscape
+  const optionWidth = isLandscape ? 100 : (screenWidth - 80) / 2;
+  const optionHeight = isLandscape ? 60 : 70;
+  const objectImageSize = isLandscape ? 40 : 50;
+
+  // Landscape layout - side by side
+  if (isLandscape) {
   return (
-    <ScrollView style={styles.countGameScroll} contentContainerStyle={styles.countGameScrollContent}>
+      <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: 15, paddingVertical: 10 }}>
+        {/* Left Panel - Objects to count */}
+        <View style={{ 
+          flex: 1, 
+          backgroundColor: '#fff', 
+          borderRadius: 20, 
+          borderWidth: 4, 
+          borderColor: '#9B59B6',
+          padding: 15,
+          marginRight: 10,
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#666', marginBottom: 10 }}>
+            How many? 🤔
+          </Text>
+          <View style={{ 
+            flexDirection: 'row', 
+            flexWrap: 'wrap', 
+            justifyContent: 'center', 
+            gap: 8,
+            maxWidth: 200,
+          }}>
+            {Array.from({ length: countQuestion.count }, (_, i) => (
+              <Image 
+                key={i} 
+                source={objectImage} 
+                style={{ width: objectImageSize, height: objectImageSize }} 
+                resizeMode="contain" 
+              />
+            ))}
+          </View>
+
+          {/* Left Panel Balloons */}
+          {showCelebration && (
+            <>
+              {[
+                { left: 10, delay: 0 },
+                { left: 60, delay: 1 },
+                { right: 60, delay: 2 },
+                { right: 10, delay: 3 },
+              ].map((balloon, i) => (
+                <Animated.Text
+                  key={`left-balloon-${i}`}
+                  style={[
+                    { position: 'absolute', fontSize: 28, zIndex: 10 },
+                    { left: balloon.left, right: balloon.right },
+                    {
+                      transform: [
+                        { 
+                          translateY: balloonAnims[balloon.delay].interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [180, -30],
+                          })
+                        },
+                      ],
+                      opacity: balloonAnims[balloon.delay].interpolate({
+                        inputRange: [0, 0.1, 0.9, 1],
+                        outputRange: [0, 1, 1, 0],
+                      }),
+                    }
+                  ]}
+                >
+                  🎈
+                </Animated.Text>
+              ))}
+              
+              {/* Stars in left panel */}
+              {[
+                { top: 15, left: 20, emoji: '⭐' },
+                { top: 40, right: 25, emoji: '✨' },
+                { bottom: 40, left: 15, emoji: '🌟' },
+              ].map((pos, i) => (
+                <Animated.Text
+                  key={`left-star-${i}`}
+                  style={[
+                    { position: 'absolute', fontSize: 18, zIndex: 10 },
+                    { top: pos.top, bottom: pos.bottom, left: pos.left, right: pos.right },
+                    {
+                      transform: [{ scale: starsScale }],
+                      opacity: starsScale,
+                    }
+                  ]}
+                >
+                  {pos.emoji}
+                </Animated.Text>
+              ))}
+            </>
+          )}
+        </View>
+
+        {/* Right Panel - Answer options */}
+        <View style={{ 
+          flex: 1.2, 
+          backgroundColor: '#fff', 
+          borderRadius: 20, 
+          borderWidth: 4, 
+          borderColor: '#27AE60',
+          padding: 15,
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+          {/* Score */}
+          <View style={{ 
+            position: 'absolute', 
+            top: 10, 
+            right: 10, 
+            flexDirection: 'row', 
+            alignItems: 'center',
+            backgroundColor: '#FFD700',
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+            borderRadius: 12,
+          }}>
+            <Image source={SCREEN_ICONS.starGold} style={{ width: 18, height: 18, marginRight: 4 }} resizeMode="contain" />
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>{score}</Text>
+          </View>
+
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#666', textAlign: 'center', marginBottom: 10 }}>
+            Pick the answer!
+          </Text>
+
+          {/* 2x2 Grid of options */}
+          <Animated.View style={[{ transform: [{ translateX: shakeAnim }] }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+              {countQuestion.options.slice(0, 2).map((opt, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => handleCountAnswer(opt)}
+                  disabled={isLocked}
+                  style={[
+                    { 
+                      width: optionWidth, 
+                      height: optionHeight, 
+                      borderRadius: 15,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 3,
+                      elevation: 3,
+                    },
+                    getOptionStyle(opt, index)
+                  ]}
+                >
+                  <Text style={{ fontSize: 28, fontWeight: '900', color: '#fff' }}>{opt}</Text>
+                  {selectedAnswer === opt && isCorrect === true && (
+                    <Text style={{ position: 'absolute', top: 4, right: 6, fontSize: 14, color: '#fff' }}>✓</Text>
+                  )}
+                  {selectedAnswer === opt && isCorrect === false && (
+                    <Text style={{ position: 'absolute', top: 4, right: 6, fontSize: 14, color: '#fff' }}>✗</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
+              {countQuestion.options.slice(2, 4).map((opt, index) => (
+                <TouchableOpacity
+                  key={index + 2}
+                  onPress={() => handleCountAnswer(opt)}
+                  disabled={isLocked}
+                  style={[
+                    { 
+                      width: optionWidth, 
+                      height: optionHeight, 
+                      borderRadius: 15,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 3,
+                      elevation: 3,
+                    },
+                    getOptionStyle(opt, index + 2)
+                  ]}
+                >
+                  <Text style={{ fontSize: 28, fontWeight: '900', color: '#fff' }}>{opt}</Text>
+                  {selectedAnswer === opt && isCorrect === true && (
+                    <Text style={{ position: 'absolute', top: 4, right: 6, fontSize: 14, color: '#fff' }}>✓</Text>
+                  )}
+                  {selectedAnswer === opt && isCorrect === false && (
+                    <Text style={{ position: 'absolute', top: 4, right: 6, fontSize: 14, color: '#fff' }}>✗</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+
+          {/* Celebration with balloons */}
+          {showCelebration && (
+            <>
+              {/* Floating Balloons */}
+              {[
+                { left: 5, color: '🎈' },
+                { left: 45, color: '🎈' },
+                { right: 45, color: '🎈' },
+                { right: 5, color: '🎈' },
+              ].map((balloon, i) => (
+                <Animated.Text
+                  key={`balloon-${i}`}
+                  style={[
+                    { position: 'absolute', fontSize: 30, zIndex: 10 },
+                    { left: balloon.left, right: balloon.right },
+                    {
+                      transform: [
+                        { 
+                          translateY: balloonAnims[i].interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [200, -50],
+                          })
+                        },
+                        {
+                          translateX: balloonAnims[i].interpolate({
+                            inputRange: [0, 0.5, 1],
+                            outputRange: [0, i % 2 === 0 ? 10 : -10, 0],
+                          })
+                        },
+                      ],
+                      opacity: balloonAnims[i].interpolate({
+                        inputRange: [0, 0.1, 0.9, 1],
+                        outputRange: [0, 1, 1, 0],
+                      }),
+                    }
+                  ]}
+                >
+                  {balloon.color}
+                </Animated.Text>
+              ))}
+
+              {/* Stars */}
+              {[
+                { top: 10, left: 15, emoji: '⭐' },
+                { top: 25, right: 20, emoji: '🌟' },
+                { top: 80, left: 10, emoji: '✨' },
+                { top: 100, right: 15, emoji: '⭐' },
+              ].map((pos, i) => (
+                <Animated.Text
+                  key={`star-${i}`}
+                  style={[
+                    { position: 'absolute', fontSize: 20, zIndex: 10 },
+                    { top: pos.top, left: pos.left, right: pos.right },
+                    {
+                      transform: [{ scale: starsScale }],
+                      opacity: starsScale,
+                    }
+                  ]}
+                >
+                  {pos.emoji}
+                </Animated.Text>
+              ))}
+
+              {/* Celebration badge */}
+              <Animated.View 
+                style={[
+                  { 
+                    position: 'absolute', 
+                    top: '40%', 
+                    alignSelf: 'center',
+                    backgroundColor: '#FFD700',
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    borderRadius: 25,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    zIndex: 20,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 8,
+                  },
+                  {
+                    transform: [{ scale: celebrationAnim }],
+                    opacity: celebrationAnim,
+                  }
+                ]}
+              >
+                <Text style={{ fontSize: 24 }}>🎉</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginHorizontal: 8 }}>Correct!</Text>
+                <Text style={{ fontSize: 24 }}>🎉</Text>
+              </Animated.View>
+            </>
+          )}
+
+          {/* Wrong feedback */}
+          {isCorrect === false && (
+            <View style={{ 
+              position: 'absolute', 
+              bottom: 10, 
+              left: 10, 
+              right: 10,
+              backgroundColor: '#FFE0E0',
+              paddingVertical: 6,
+              paddingHorizontal: 10,
+              borderRadius: 10,
+            }}>
+              <Text style={{ fontSize: 12, color: '#C0392B', textAlign: 'center', fontWeight: '600' }}>
+                ❌ The answer is {countQuestion.count}. Try again! 💪
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Portrait layout - original
+  return (
+    <ScrollView 
+      style={styles.countGameScroll} 
+      contentContainerStyle={styles.countGameScrollContent}
+    >
       <View style={styles.scoreBox}>
         <Image source={SCREEN_ICONS.starGold} style={styles.scoreIcon} resizeMode="contain" />
         <Text style={styles.scoreText}>{score}</Text>
@@ -883,7 +1256,6 @@ const CountGame: React.FC<CountGameProps> = ({ score, setScore }) => {
               style={[styles.optionButton, getOptionStyle(opt, index)]}
             >
               <Text style={styles.optionText}>{opt}</Text>
-              {/* Show checkmark for correct, X for wrong */}
               {selectedAnswer === opt && isCorrect === true && (
                 <Text style={styles.feedbackIcon}>✓</Text>
               )}
@@ -1014,6 +1386,7 @@ const NumberWritingPractice: React.FC<NumberWritingPracticeProps> = ({
   hasNext,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
   const num = numberData.num;
   const balloonColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
@@ -1086,46 +1459,16 @@ const NumberWritingPractice: React.FC<NumberWritingPracticeProps> = ({
         ),
       ]).start();
       
-      // Hide celebration after 1 second, then start countdown
+      // Hide celebration after 3 seconds - NO auto-clear of coloring
       setTimeout(() => {
         setShowCelebration(false);
-        // Start countdown from 5
-        setCountdown(5);
-      }, 1000);
-    }
-  }, [currentFill]);
-  
-  // Countdown effect with animation
-  useEffect(() => {
-    if (countdown !== null && countdown > 0) {
-      // Bounce animation for each number
-      countdownAnim.setValue(0);
-      Animated.spring(countdownAnim, {
-        toValue: 1,
-        friction: 3,
-        tension: 100,
-        useNativeDriver: true,
-      }).start();
-      
-      // Decrease countdown after 1 second
-      const timer = setTimeout(() => {
-        setCountdown(countdown - 1);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    } else if (countdown === 0) {
-      // Time's up! Clear the coloring
-      setTimeout(() => {
-        setColorSegments([]);
-        setCurrentFill(0);
-        setCountdown(null);
-        celebrationTriggered.current = false;
+        // Reset animations but keep the coloring
         celebrationAnim.setValue(0);
         starsScale.setValue(0);
         balloonAnims.forEach(anim => anim.setValue(0));
-      }, 500);
+      }, 3000);
     }
-  }, [countdown]);
+  }, [currentFill]);
   
   const COLOR_PALETTE = [
     '#E74C3C', // Red
@@ -1288,6 +1631,252 @@ const NumberWritingPractice: React.FC<NumberWritingPracticeProps> = ({
     );
   };
 
+  // Landscape layout
+  if (isLandscape) {
+    return (
+      <View style={{ flex: 1, flexDirection: 'row', padding: 10 }}>
+        {/* Left Panel - Number Display */}
+        <View style={{ 
+          width: 240, 
+          backgroundColor: '#fff', 
+          borderRadius: 20, 
+          borderWidth: 4, 
+          borderColor: balloonColor,
+          padding: 15,
+          marginRight: 10,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <Animated.View style={{ transform: [{ translateY: bounceAnim }] }}>
+            <Text style={{ fontSize: 70, fontWeight: '900', color: balloonColor }}>
+              {num}
+            </Text>
+          </Animated.View>
+          
+          {/* Show all objects in rows */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 8, maxWidth: 210 }}>
+            {Array.from({ length: num }, (_, i) => (
+              <Text key={i} style={{ fontSize: 24 }}>{COUNTING_OBJECTS[num].emoji}</Text>
+            ))}
+          </View>
+          
+          <View style={{ backgroundColor: balloonColor, paddingHorizontal: 15, paddingVertical: 6, borderRadius: 15, marginTop: 10 }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{numberData.word}</Text>
+          </View>
+
+          {/* Navigation */}
+          <View style={{ flexDirection: 'row', marginTop: 15, gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => { stopSpeaking(); onPrevious(); }}
+              disabled={!hasPrevious}
+              style={{ 
+                width: 40, height: 40, borderRadius: 20, 
+                backgroundColor: hasPrevious ? balloonColor : '#ddd',
+                justifyContent: 'center', alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>◀</Text>
+            </TouchableOpacity>
+            <View style={{ backgroundColor: 'rgba(0,0,0,0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600' }}>{index + 1}/10</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => { stopSpeaking(); onNext(); }}
+              disabled={!hasNext}
+              style={{ 
+                width: 40, height: 40, borderRadius: 20, 
+                backgroundColor: hasNext ? balloonColor : '#ddd',
+                justifyContent: 'center', alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>▶</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Right Panel - Tracing & Activities */}
+        <ScrollView 
+          ref={scrollViewRef}
+          style={{ flex: 1 }}
+          horizontal={true}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ flexDirection: 'row', gap: 10 }}
+        >
+          {/* Tracing Card */}
+          <View style={{ 
+            width: screenWidth * 0.45, 
+            backgroundColor: '#fff', 
+            borderRadius: 18, 
+            borderWidth: 3, 
+            borderColor: '#3498DB',
+            padding: 12,
+          }}>
+            <View style={{ backgroundColor: '#3498DB', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'center', marginBottom: 10 }}>
+              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>✏️ Trace the Number</Text>
+            </View>
+            
+            <View style={{ backgroundColor: '#F8F9FA', borderRadius: 10, padding: 8 }}>
+              {/* Tracing rows */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 6 }}>
+                {[...Array(6)].map((_, i) => (
+                  <View key={`trace-${i}`} style={{ alignItems: 'center' }}>
+                    {renderDottedNumber(num, 40)}
+                  </View>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+                {[...Array(7)].map((_, i) => (
+                  <View key={`trace2-${i}`} style={{ alignItems: 'center' }}>
+                    {renderDottedNumber(num, 32)}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Mini Drawing Canvas */}
+            <View style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#333' }}>✍️ Practice Here</Text>
+                <TouchableOpacity onPress={clearTracing} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF6B6B', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>🧹 Clear</Text>
+                </TouchableOpacity>
+              </View>
+              <View 
+                style={{ height: 100, backgroundColor: '#FAFAFA', borderRadius: 10, borderWidth: 2, borderColor: '#E0E0E0', borderStyle: 'dashed', overflow: 'hidden' }} 
+                {...panResponder.panHandlers}
+              >
+                {savedPaths.map((path, pathIndex) => (
+                  path.map((point, pointIndex) => (
+                    <View
+                      key={`saved-${drawingVersion}-${pathIndex}-${pointIndex}`}
+                      style={{ position: 'absolute', width: 5, height: 5, borderRadius: 3, left: point.x - 2, top: point.y - 2, backgroundColor: balloonColor }}
+                    />
+                  ))
+                ))}
+                {currentDrawing.map((point, pointIndex) => (
+                  <View
+                    key={`current-${pointIndex}`}
+                    style={{ position: 'absolute', width: 5, height: 5, borderRadius: 3, left: point.x - 2, top: point.y - 2, backgroundColor: balloonColor }}
+                  />
+                ))}
+                <Text style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -30 }, { translateY: -40 }], fontSize: 80, fontWeight: '900', color: `${balloonColor}15` }}>
+                  {num}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Color It Card */}
+          <View style={{ 
+            width: screenWidth * 0.35, 
+            backgroundColor: '#fff', 
+            borderRadius: 18, 
+            borderWidth: 3, 
+            borderColor: balloonColor,
+            padding: 12,
+            overflow: 'hidden',
+          }}>
+            <View style={{ backgroundColor: balloonColor, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, alignSelf: 'center', marginBottom: 10 }}>
+              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>🎨 Color It!</Text>
+            </View>
+            
+            {/* Color Palette - Horizontal */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
+              {COLOR_PALETTE.slice(0, 8).map((color, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => handleColorSelect(color)}
+                  style={[
+                    { width: 28, height: 28, borderRadius: 14, backgroundColor: color, borderWidth: 2, borderColor: '#fff' },
+                    selectedColor === color && { borderWidth: 3, borderColor: '#333', transform: [{ scale: 1.1 }] },
+                  ]}
+                />
+              ))}
+              <TouchableOpacity onPress={clearColoring} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', borderWidth: 2, borderColor: '#ddd', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ fontSize: 14 }}>🧹</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Color Canvas */}
+            <View 
+              style={{ height: 150, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
+              {...fillPanResponder.panHandlers}
+            >
+              <Text style={{ fontSize: 120, fontWeight: '900', color: '#E0E0E0', position: 'absolute' }}>{num}</Text>
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: `${currentFill}%`, overflow: 'hidden', justifyContent: 'flex-start', alignItems: 'center' }}>
+                <Text style={{ fontSize: 120, fontWeight: '900', color: selectedColor }}>{num}</Text>
+              </View>
+              <View style={{ position: 'absolute', top: 5, right: 5, backgroundColor: selectedColor, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{Math.round(currentFill)}%</Text>
+              </View>
+              
+              {/* Celebration Overlay */}
+              {showCelebration && (
+                <>
+                  {/* Balloons */}
+                  {[
+                    { emoji: '🎈', color: '#E74C3C', left: 10 },
+                    { emoji: '🎈', color: '#3498DB', left: 50 },
+                    { emoji: '🎈', color: '#F1C40F', right: 50 },
+                    { emoji: '🎈', color: '#27AE60', right: 10 },
+                  ].map((balloon, i) => (
+                    <Animated.Text
+                      key={`balloon-${i}`}
+                      style={[
+                        { position: 'absolute', fontSize: 30, bottom: 0, left: balloon.left, right: balloon.right },
+                        {
+                          transform: [
+                            {
+                              translateY: balloonAnims[i].interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [100, -20],
+                              })
+                            },
+                          ],
+                          opacity: balloonAnims[i],
+                        }
+                      ]}
+                    >
+                      {balloon.emoji}
+                    </Animated.Text>
+                  ))}
+                  
+                  {/* Stars */}
+                  {['⭐', '🌟', '✨', '⭐'].map((star, i) => (
+                    <Animated.Text
+                      key={`star-${i}`}
+                      style={[
+                        { position: 'absolute', fontSize: 20 },
+                        { top: 20 + i * 30, left: i % 2 === 0 ? 10 : undefined, right: i % 2 === 1 ? 10 : undefined },
+                        { transform: [{ scale: starsScale }], opacity: starsScale }
+                      ]}
+                    >
+                      {star}
+                    </Animated.Text>
+                  ))}
+                  
+                  {/* Celebration Badge */}
+                  <Animated.View 
+                    style={[
+                      { position: 'absolute', backgroundColor: '#27AE60', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, flexDirection: 'row', alignItems: 'center' },
+                      { transform: [{ scale: celebrationAnim }], opacity: celebrationAnim }
+                    ]}
+                  >
+                    <Text style={{ fontSize: 18 }}>🎉</Text>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginHorizontal: 5 }}>Great!</Text>
+                    <Text style={{ fontSize: 18 }}>🎉</Text>
+                  </Animated.View>
+                </>
+              )}
+            </View>
+            <Text style={{ fontSize: 11, color: '#888', textAlign: 'center', marginTop: 5 }}>👆 Drag down to fill!</Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Portrait layout - original
   return (
     <ScrollView 
       ref={scrollViewRef}
@@ -1658,9 +2247,11 @@ interface WritingGridCardProps {
   numberData: NumberData;
   index: number;
   onPress: () => void;
+  cardWidth: number;
+  isLandscape: boolean;
 }
 
-const WritingGridCard: React.FC<WritingGridCardProps> = ({ numberData, index, onPress }) => {
+const WritingGridCard: React.FC<WritingGridCardProps> = ({ numberData, index, onPress, cardWidth, isLandscape }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
   const bgColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
@@ -1669,24 +2260,30 @@ const WritingGridCard: React.FC<WritingGridCardProps> = ({ numberData, index, on
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      delay: index * 20,
+      delay: index * 15,
       tension: 60,
       friction: 8,
     }).start();
   }, [scaleAnim, index]);
 
+  const circleSize = isLandscape ? 36 : 45;
+
   return (
-    <Animated.View style={[writingStyles.gridCard, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[writingStyles.gridCard, { width: cardWidth, transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[writingStyles.gridCardInner, { borderColor }]}
+        style={[
+          writingStyles.gridCardInner, 
+          { borderColor },
+          isLandscape && { borderRadius: 12, borderWidth: 2, padding: 8 },
+        ]}
         activeOpacity={0.8}
       >
-        <View style={[writingStyles.numberCircle, { backgroundColor: bgColor }]}>
-          <Text style={writingStyles.gridNumber}>{numberData.num}</Text>
+        <View style={[writingStyles.numberCircle, { backgroundColor: bgColor, width: circleSize, height: circleSize, borderRadius: circleSize / 2 }]}>
+          <Text style={[writingStyles.gridNumber, isLandscape && { fontSize: 18 }]}>{numberData.num}</Text>
         </View>
-        <Text style={writingStyles.gridWord}>{numberData.word}</Text>
-        <Text style={writingStyles.gridWriteHint}>✏️ Write</Text>
+        <Text style={[writingStyles.gridWord, isLandscape && { fontSize: 11, marginTop: 4 }]}>{numberData.word}</Text>
+        <Text style={[writingStyles.gridWriteHint, isLandscape && { fontSize: 9 }]}>✏️ Write</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -1704,6 +2301,13 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
   const [writingSelectedIndex, setWritingSelectedIndex] = useState<number | null>(null);
   const [writingViewMode, setWritingViewMode] = useState<'grid' | 'practice'>('grid');
   const [score, setScore] = useState(0);
+  
+  // Responsive layout
+  const { width: screenWidth, isLandscape, cardWidth } = useResponsiveLayout();
+  const columns = isLandscape ? 5 : 2;
+  const gap = isLandscape ? 8 : 10;
+  const padding = isLandscape ? 10 : 15;
+  const gridCardWidth = cardWidth(columns, gap, padding + insets.left + insets.right);
 
   const openFlashcard = (index: number) => {
     setSelectedIndex(index);
@@ -1792,43 +2396,54 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
       </View>
 
       {/* Mute Button - Top Right */}
-      <MuteButton style={{ position: 'absolute', right: 15, top: insets.top + 15, zIndex: 100 }} size="medium" />
+      <MuteButton 
+        style={{ position: 'absolute', right: insets.right + 15, top: insets.top + 10, zIndex: 100 }} 
+        size={isLandscape ? 'small' : 'medium'} 
+      />
 
       {/* Main Header with Back Button */}
       {!isInDetailView && (
-        <View style={[styles.header, { marginTop: insets.top + 10 }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
+        <View style={[
+          styles.header, 
+          { marginTop: insets.top + (isLandscape ? 5 : 10), paddingHorizontal: insets.left + 15 },
+          isLandscape && { marginBottom: 5 },
+        ]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, isLandscape && { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 }]}>
+            <Text style={[styles.backText, isLandscape && { fontSize: 13 }]}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>🔢 Numbers</Text>
+          <Text style={[styles.headerTitle, isLandscape && { fontSize: 18 }]}>🔢 Numbers</Text>
           <View style={styles.headerSpace} />
         </View>
       )}
 
       {/* Tab Navigation - Only show when not in detail view */}
       {!isInDetailView && (
-        <View style={styles.tabContainer}>
+        <View style={[
+          styles.tabContainer, 
+          { marginHorizontal: insets.left + 15 },
+          isLandscape && { marginBottom: 5, borderRadius: 18, padding: 3 },
+        ]}>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'learn' && styles.tabButtonActive]}
+            style={[styles.tabButton, activeTab === 'learn' && styles.tabButtonActive, isLandscape && { paddingVertical: 8, borderRadius: 15 }]}
             onPress={() => setActiveTab('learn')}
           >
-            <Text style={[styles.tabText, activeTab === 'learn' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, activeTab === 'learn' && styles.tabTextActive, isLandscape && { fontSize: 12 }]}>
               📚 Learn
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'write' && styles.tabButtonActive]}
+            style={[styles.tabButton, activeTab === 'write' && styles.tabButtonActive, isLandscape && { paddingVertical: 8, borderRadius: 15 }]}
             onPress={() => setActiveTab('write')}
           >
-            <Text style={[styles.tabText, activeTab === 'write' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, activeTab === 'write' && styles.tabTextActive, isLandscape && { fontSize: 12 }]}>
               ✏️ Write
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'count' && styles.tabButtonActive]}
+            style={[styles.tabButton, activeTab === 'count' && styles.tabButtonActive, isLandscape && { paddingVertical: 8, borderRadius: 15 }]}
             onPress={() => setActiveTab('count')}
           >
-            <Text style={[styles.tabText, activeTab === 'count' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, activeTab === 'count' && styles.tabTextActive, isLandscape && { fontSize: 12 }]}>
               🎮 Count
             </Text>
           </TouchableOpacity>
@@ -1840,18 +2455,26 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
         <>
           {viewMode === 'grid' ? (
             <>
-              <View style={styles.instructionBox}>
-                <Text style={styles.instructionText}>✨ Tap to learn numbers! ✨</Text>
+              <View style={[styles.instructionBox, isLandscape && styles.instructionBoxLandscape]}>
+                <Text style={[styles.instructionText, isLandscape && { fontSize: 11 }]}>✨ Tap to learn numbers! ✨</Text>
               </View>
 
-              <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
-                <View style={styles.gridWrapper}>
+              <ScrollView 
+                contentContainerStyle={[
+                  styles.gridContainer,
+                  { paddingHorizontal: padding + insets.left, paddingRight: padding + insets.right }
+                ]} 
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={[styles.gridWrapper, { gap: gap }]}>
                   {NUMBERS.map((num, index) => (
                     <GridCard
                       key={num.num}
                       numberData={num}
                       index={index}
                       onPress={() => openFlashcard(index)}
+                      cardWidth={gridCardWidth}
+                      isLandscape={isLandscape}
                     />
                   ))}
                 </View>
@@ -1859,9 +2482,9 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
             </>
           ) : (
             <>
-              <View style={[styles.flashcardHeader, { marginTop: insets.top + 10 }]}>
-                <TouchableOpacity onPress={closeFlashcard} style={styles.backArrowBtn}>
-                  <Text style={styles.backArrowText}>↩</Text>
+              <View style={[styles.flashcardHeader, { marginTop: insets.top + 5, paddingHorizontal: insets.left + 15 }]}>
+                <TouchableOpacity onPress={closeFlashcard} style={[styles.backArrowBtn, isLandscape && { width: 50, height: 50 }]}>
+                  <Text style={[styles.backArrowText, isLandscape && { fontSize: 22 }]}>↩</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1873,6 +2496,8 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
                   onNext={goToNext}
                   hasPrevious={selectedIndex > 0}
                   hasNext={selectedIndex < NUMBERS.length - 1}
+                  isLandscape={isLandscape}
+                  screenWidth={screenWidth}
                 />
               )}
             </>
@@ -1885,18 +2510,26 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
         <>
           {writingViewMode === 'grid' ? (
             <>
-              <View style={styles.instructionBox}>
-                <Text style={styles.instructionText}>✏️ Select a number to practice writing! ✏️</Text>
+              <View style={[styles.instructionBox, isLandscape && styles.instructionBoxLandscape]}>
+                <Text style={[styles.instructionText, isLandscape && { fontSize: 11 }]}>✏️ Select a number to practice writing! ✏️</Text>
               </View>
 
-              <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
-                <View style={styles.gridWrapper}>
+              <ScrollView 
+                contentContainerStyle={[
+                  styles.gridContainer,
+                  { paddingHorizontal: padding + insets.left, paddingRight: padding + insets.right }
+                ]} 
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={[styles.gridWrapper, { gap: gap }]}>
                   {NUMBERS.map((num, idx) => (
                     <WritingGridCard
                       key={`write-${num.num}`}
                       numberData={num}
                       index={idx}
                       onPress={() => openWritingPractice(idx)}
+                      cardWidth={gridCardWidth}
+                      isLandscape={isLandscape}
                     />
                   ))}
                 </View>
@@ -1904,11 +2537,11 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
             </>
           ) : (
             <>
-              <View style={[styles.flashcardHeader, { marginTop: insets.top + 10 }]}>
-                <TouchableOpacity onPress={closeWritingPractice} style={styles.backArrowBtn}>
-                  <Text style={styles.backArrowText}>↩</Text>
+              <View style={[styles.flashcardHeader, { marginTop: insets.top + 5, paddingHorizontal: insets.left + 15 }]}>
+                <TouchableOpacity onPress={closeWritingPractice} style={[styles.backArrowBtn, isLandscape && { width: 50, height: 50 }]}>
+                  <Text style={[styles.backArrowText, isLandscape && { fontSize: 22 }]}>↩</Text>
                 </TouchableOpacity>
-                <Text style={styles.writingHeaderTitle}>✏️ Writing Practice</Text>
+                <Text style={[styles.writingHeaderTitle, isLandscape && { fontSize: 18 }]}>✏️ Writing Practice</Text>
                 <View style={{ width: 65 }} />
               </View>
 
@@ -2199,23 +2832,27 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     zIndex: 10,
   },
+  instructionBoxLandscape: {
+    paddingVertical: 6,
+    marginHorizontal: 10,
+    marginBottom: 5,
+    borderRadius: 15,
+  },
   instructionText: {
     fontSize: 14,
     fontWeight: '700',
     color: '#333',
   },
   gridContainer: {
-    paddingHorizontal: 8,
     paddingBottom: 50,
   },
   gridWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   gridCard: {
-    width: CARD_WIDTH,
-    margin: 6,
+    marginBottom: 6,
   },
   gridCardInner: {
     backgroundColor: '#fff',
@@ -3381,8 +4018,7 @@ const writingStyles = StyleSheet.create({
   },
   // Writing Grid Card
   gridCard: {
-    width: WRITING_CARD_WIDTH,
-    margin: 6,
+    marginBottom: 6,
   },
   gridCardInner: {
     backgroundColor: '#fff',

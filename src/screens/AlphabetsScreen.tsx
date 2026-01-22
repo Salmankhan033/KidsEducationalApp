@@ -18,6 +18,7 @@ import { ALPHABETS, AlphabetData } from '../constants/alphabets';
 import { speak, stopSpeaking } from '../utils/speech';
 import { SCREEN_ICONS } from '../assets/images';
 import { MuteButton } from '../components';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width, height } = Dimensions.get('window');
 
@@ -95,6 +96,8 @@ interface FlashcardProps {
   onNext: () => void;
   hasPrevious: boolean;
   hasNext: boolean;
+  isLandscape?: boolean;
+  screenWidth?: number;
 }
 
 const Flashcard: React.FC<FlashcardProps> = ({
@@ -104,6 +107,8 @@ const Flashcard: React.FC<FlashcardProps> = ({
   onNext,
   hasPrevious,
   hasNext,
+  isLandscape = false,
+  screenWidth = width,
 }) => {
   const cardAnim = useRef(new Animated.Value(0)).current;
   const balloonBounce = useRef(new Animated.Value(0)).current;
@@ -113,6 +118,18 @@ const Flashcard: React.FC<FlashcardProps> = ({
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
   const image1 = ALPHABET_IMAGE_1[alphabet.letter];
   const image2 = ALPHABET_IMAGE_2[alphabet.letter];
+  
+  // Responsive dimensions
+  const cardWidth = isLandscape ? screenWidth * 0.45 : screenWidth - 30;
+  const balloonSize = isLandscape ? { width: 40, height: 50 } : { width: 55, height: 65 };
+  const imageContainerSize = isLandscape ? 100 : 140;
+  const mainImageSize = isLandscape ? 70 : 100;
+  const responsiveFontSize = {
+    letter: isLandscape ? 28 : 36,
+    word: isLandscape ? 22 : 30,
+    forText: isLandscape ? 22 : 28,
+    sentence: isLandscape ? 14 : 18,
+  };
 
   useEffect(() => {
     // Scroll to top when alphabet changes
@@ -136,131 +153,249 @@ const Flashcard: React.FC<FlashcardProps> = ({
     speak(`${alphabet.letter} for ${alphabet.word1}`);
   }, [alphabet, cardAnim, balloonBounce]);
 
+  // Responsive card styles
+  const responsiveCardStyle = {
+    width: cardWidth,
+    padding: isLandscape ? 15 : 22,
+    borderRadius: isLandscape ? 18 : 25,
+    borderWidth: isLandscape ? 4 : 6,
+    marginBottom: isLandscape ? 0 : 18,
+  };
+  
+  const responsiveImageContainerStyle = {
+    width: imageContainerSize,
+    height: imageContainerSize,
+    borderRadius: isLandscape ? 18 : 25,
+    marginBottom: isLandscape ? 10 : 18,
+  };
+  
+  const responsiveListenBtnStyle = {
+    width: isLandscape ? 50 : 70,
+    height: isLandscape ? 50 : 70,
+    borderRadius: isLandscape ? 25 : 35,
+  };
+
   return (
     <ScrollView 
       ref={scrollViewRef}
       style={styles.flashcardScroll}
-      contentContainerStyle={styles.flashcardScrollContent}
+      contentContainerStyle={[
+        styles.flashcardScrollContent,
+        isLandscape && { paddingTop: 15, paddingBottom: 15, paddingHorizontal: 10 }
+      ]}
       showsVerticalScrollIndicator={false}
+      horizontal={isLandscape}
+      showsHorizontalScrollIndicator={false}
     >
       <Animated.View
-        style={[styles.flashcardContainer, { transform: [{ scale: cardAnim }], opacity: cardAnim }]}
+        style={[
+          styles.flashcardContainer, 
+          { transform: [{ scale: cardAnim }], opacity: cardAnim },
+          isLandscape && { flexDirection: 'row', alignItems: 'flex-start', gap: 12 }
+        ]}
       >
         {/* SECTION 1: A for Apple */}
-        <View style={[styles.sectionCard, { borderColor: borderColor }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: balloonColor }]}>
-              <Text style={styles.balloonLetter}>{alphabet.letter}</Text>
+        <View style={[styles.sectionCard, { borderColor: borderColor }, responsiveCardStyle]}>
+          {/* Landscape: inline balloon layout */}
+          {isLandscape ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 8 }}>
+              <Animated.View style={[{ transform: [{ translateY: balloonBounce }], marginRight: 10 }]}>
+                <View style={[styles.balloon, { backgroundColor: balloonColor, width: balloonSize.width, height: balloonSize.height, borderRadius: balloonSize.width / 2 }]}>
+                  <Text style={[styles.balloonLetter, { fontSize: 20 }]}>{alphabet.letter}</Text>
+                </View>
+                <View style={[styles.balloonTail, { borderTopColor: balloonColor }]} />
+              </Animated.View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.forText, { fontSize: responsiveFontSize.forText, marginTop: 0, marginBottom: 0 }]}>
+                  <Text style={[styles.letterHighlight, { color: balloonColor, fontSize: responsiveFontSize.letter }]}>{alphabet.letter}</Text>
+                  {' for '}
+                  <Text style={[styles.wordHighlight, { fontSize: responsiveFontSize.word }]}>{alphabet.word1}</Text>
+                </Text>
+              </View>
             </View>
-            <View style={[styles.balloonTail, { borderTopColor: balloonColor }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
+          ) : (
+            <>
+              <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
+                <View style={[styles.balloon, { backgroundColor: balloonColor }]}>
+                  <Text style={styles.balloonLetter}>{alphabet.letter}</Text>
+                </View>
+                <View style={[styles.balloonTail, { borderTopColor: balloonColor }]} />
+                <View style={styles.balloonString} />
+              </Animated.View>
 
-          <Text style={styles.forText}>
-            <Text style={[styles.letterHighlight, { color: balloonColor }]}>{alphabet.letter}</Text>
-            {' for '}
-            <Text style={styles.wordHighlight}>{alphabet.word1}</Text>
-          </Text>
+              <Text style={styles.forText}>
+                <Text style={[styles.letterHighlight, { color: balloonColor }]}>{alphabet.letter}</Text>
+                {' for '}
+                <Text style={styles.wordHighlight}>{alphabet.word1}</Text>
+              </Text>
+            </>
+          )}
 
-          <View style={styles.imageContainer}>
-            <Image source={image1} style={styles.mainImage} resizeMode="contain" />
+          <View style={[styles.imageContainer, responsiveImageContainerStyle]}>
+            <Image source={image1} style={{ width: mainImageSize, height: mainImageSize }} resizeMode="contain" />
           </View>
 
           <TouchableOpacity 
             onPress={() => speak(`${alphabet.letter} for ${alphabet.word1}`)} 
-            style={[styles.listenBtn, { backgroundColor: balloonColor }]}
+            style={[styles.listenBtn, { backgroundColor: balloonColor }, responsiveListenBtnStyle]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconLarge} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconLarge, isLandscape && { width: 24, height: 24 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 2: A for Ant */}
-        <View style={[styles.sectionCard, { borderColor: CARD_BORDER_COLORS[(index + 1) % CARD_BORDER_COLORS.length] }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }]}>
-              <Text style={styles.balloonLetter}>{alphabet.letter}</Text>
+        <View style={[styles.sectionCard, { borderColor: CARD_BORDER_COLORS[(index + 1) % CARD_BORDER_COLORS.length] }, responsiveCardStyle]}>
+          {isLandscape ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 8 }}>
+              <Animated.View style={[{ transform: [{ translateY: balloonBounce }], marginRight: 10 }]}>
+                <View style={[styles.balloon, { backgroundColor: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length], width: balloonSize.width, height: balloonSize.height, borderRadius: balloonSize.width / 2 }]}>
+                  <Text style={[styles.balloonLetter, { fontSize: 20 }]}>{alphabet.letter}</Text>
+                </View>
+                <View style={[styles.balloonTail, { borderTopColor: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }]} />
+              </Animated.View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.forText, { fontSize: responsiveFontSize.forText, marginTop: 0, marginBottom: 0 }]}>
+                  <Text style={[styles.letterHighlight, { color: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length], fontSize: responsiveFontSize.letter }]}>{alphabet.letter}</Text>
+                  {' for '}
+                  <Text style={[styles.wordHighlight, { fontSize: responsiveFontSize.word }]}>{alphabet.word2}</Text>
+                </Text>
+              </View>
             </View>
-            <View style={[styles.balloonTail, { borderTopColor: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
+          ) : (
+            <>
+              <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
+                <View style={[styles.balloon, { backgroundColor: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }]}>
+                  <Text style={styles.balloonLetter}>{alphabet.letter}</Text>
+                </View>
+                <View style={[styles.balloonTail, { borderTopColor: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }]} />
+                <View style={styles.balloonString} />
+              </Animated.View>
 
-          <Text style={styles.forText}>
-            <Text style={[styles.letterHighlight, { color: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }]}>{alphabet.letter}</Text>
-            {' for '}
-            <Text style={styles.wordHighlight}>{alphabet.word2}</Text>
-          </Text>
+              <Text style={styles.forText}>
+                <Text style={[styles.letterHighlight, { color: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }]}>{alphabet.letter}</Text>
+                {' for '}
+                <Text style={styles.wordHighlight}>{alphabet.word2}</Text>
+              </Text>
+            </>
+          )}
 
-          <View style={styles.imageContainer}>
-            <Image source={image2} style={styles.mainImage} resizeMode="contain" />
+          <View style={[styles.imageContainer, responsiveImageContainerStyle]}>
+            <Image source={image2} style={{ width: mainImageSize, height: mainImageSize }} resizeMode="contain" />
           </View>
 
           <TouchableOpacity 
             onPress={() => speak(`${alphabet.letter} for ${alphabet.word2}`)} 
-            style={[styles.listenBtn, { backgroundColor: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }]}
+            style={[styles.listenBtn, { backgroundColor: BALLOON_COLORS[(index + 1) % BALLOON_COLORS.length] }, responsiveListenBtnStyle]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconLarge} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconLarge, isLandscape && { width: 24, height: 24 }]} />
           </TouchableOpacity>
         </View>
 
         {/* SECTION 3: Make Sentence */}
-        <View style={[styles.sentenceCard, { borderColor: '#FFD700' }]}>
-          <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
-            <View style={[styles.balloon, { backgroundColor: '#FFD700' }]}>
-              <Text style={styles.balloonLetter}>{alphabet.letter}</Text>
+        <View style={[
+          styles.sentenceCard, 
+          { borderColor: '#FFD700' },
+          { width: cardWidth },
+          isLandscape && { padding: 12, borderRadius: 15, borderWidth: 3, marginBottom: 0 }
+        ]}>
+          {isLandscape ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Animated.View style={[{ transform: [{ translateY: balloonBounce }], marginRight: 10 }]}>
+                <View style={[styles.balloon, { backgroundColor: '#FFD700', width: balloonSize.width, height: balloonSize.height, borderRadius: balloonSize.width / 2 }]}>
+                  <Text style={[styles.balloonLetter, { fontSize: 20 }]}>{alphabet.letter}</Text>
+                </View>
+                <View style={[styles.balloonTail, { borderTopColor: '#FFD700' }]} />
+              </Animated.View>
+              <Text style={[styles.sentenceTitle, { marginTop: 0, marginBottom: 0, fontSize: 14 }]}>📝 Make Sentence</Text>
             </View>
-            <View style={[styles.balloonTail, { borderTopColor: '#FFD700' }]} />
-            <View style={styles.balloonString} />
-          </Animated.View>
+          ) : (
+            <>
+              <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
+                <View style={[styles.balloon, { backgroundColor: '#FFD700' }]}>
+                  <Text style={styles.balloonLetter}>{alphabet.letter}</Text>
+                </View>
+                <View style={[styles.balloonTail, { borderTopColor: '#FFD700' }]} />
+                <View style={styles.balloonString} />
+              </Animated.View>
 
-          <Text style={styles.sentenceTitle}>📝 Make Sentence</Text>
+              <Text style={styles.sentenceTitle}>📝 Make Sentence</Text>
+            </>
+          )}
           
-          <View style={styles.sentenceImagesRow}>
+          <View style={[styles.sentenceImagesRow, isLandscape && { marginBottom: 8 }]}>
             <View style={styles.sentenceImageBox}>
-              <Image source={image2} style={styles.sentenceImage} resizeMode="contain" />
-              <Text style={styles.sentenceImageLabel}>{alphabet.word2}</Text>
+              <Image source={image2} style={[styles.sentenceImage, isLandscape && { width: 40, height: 40 }]} resizeMode="contain" />
+              <Text style={[styles.sentenceImageLabel, isLandscape && { fontSize: 10 }]}>{alphabet.word2}</Text>
             </View>
-            <Text style={styles.sentencePlus}>+</Text>
+            <Text style={[styles.sentencePlus, isLandscape && { fontSize: 20, marginHorizontal: 10 }]}>+</Text>
             <View style={styles.sentenceImageBox}>
-              <Image source={image1} style={styles.sentenceImage} resizeMode="contain" />
-              <Text style={styles.sentenceImageLabel}>{alphabet.word1}</Text>
+              <Image source={image1} style={[styles.sentenceImage, isLandscape && { width: 40, height: 40 }]} resizeMode="contain" />
+              <Text style={[styles.sentenceImageLabel, isLandscape && { fontSize: 10 }]}>{alphabet.word1}</Text>
             </View>
           </View>
 
-          <View style={styles.sentenceTextBox}>
-            <Text style={styles.sentenceText}>" {alphabet.sentence} "</Text>
+          <View style={[styles.sentenceTextBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 }]}>
+            <Text style={[styles.sentenceText, { fontSize: responsiveFontSize.sentence }]}>" {alphabet.sentence} "</Text>
           </View>
 
           <TouchableOpacity 
             onPress={() => speak(alphabet.sentence)} 
-            style={styles.listenBtnLarge}
+            style={[styles.listenBtnLarge, responsiveListenBtnStyle]}
           >
-            <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconXL} />
+            <Image source={SCREEN_ICONS.speaker} style={[styles.speakerIconXL, isLandscape && { width: 24, height: 24 }]} />
           </TouchableOpacity>
         </View>
 
-        {/* Navigation */}
-        <View style={styles.navigationRow}>
+        {/* Navigation - Only show in portrait or as last item in landscape */}
+        {!isLandscape && (
+          <View style={styles.navigationRow}>
+            <TouchableOpacity
+              onPress={() => { stopSpeaking(); onPrevious(); }}
+              style={[styles.navArrowBtn, !hasPrevious && styles.navArrowDisabled]}
+              disabled={!hasPrevious}
+            >
+              <Text style={styles.navArrowText}>◀</Text>
+            </TouchableOpacity>
+
+            <View style={styles.progressBox}>
+              <Text style={styles.progressText}>{index + 1} / 26</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => { stopSpeaking(); onNext(); }}
+              style={[styles.navArrowBtn, !hasNext && styles.navArrowDisabled]}
+              disabled={!hasNext}
+            >
+              <Text style={styles.navArrowText}>▶</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.View>
+      
+      {/* Landscape Navigation - Vertical at the end */}
+      {isLandscape && (
+        <View style={{ justifyContent: 'center', alignItems: 'center', paddingHorizontal: 10 }}>
           <TouchableOpacity
             onPress={() => { stopSpeaking(); onPrevious(); }}
-            style={[styles.navArrowBtn, !hasPrevious && styles.navArrowDisabled]}
+            style={[styles.navArrowBtn, { marginBottom: 10, width: 45, height: 45 }, !hasPrevious && styles.navArrowDisabled]}
             disabled={!hasPrevious}
           >
-            <Text style={styles.navArrowText}>◀</Text>
+            <Text style={[styles.navArrowText, { fontSize: 18 }]}>◀</Text>
           </TouchableOpacity>
 
-          <View style={styles.progressBox}>
-            <Text style={styles.progressText}>{index + 1} / 26</Text>
+          <View style={[styles.progressBox, { paddingHorizontal: 12, paddingVertical: 6 }]}>
+            <Text style={[styles.progressText, { fontSize: 12 }]}>{index + 1}/26</Text>
           </View>
 
           <TouchableOpacity
             onPress={() => { stopSpeaking(); onNext(); }}
-            style={[styles.navArrowBtn, !hasNext && styles.navArrowDisabled]}
+            style={[styles.navArrowBtn, { marginTop: 10, width: 45, height: 45 }, !hasNext && styles.navArrowDisabled]}
             disabled={!hasNext}
           >
-            <Text style={styles.navArrowText}>▶</Text>
+            <Text style={[styles.navArrowText, { fontSize: 18 }]}>▶</Text>
           </TouchableOpacity>
         </View>
-      </Animated.View>
+      )}
     </ScrollView>
   );
 };
@@ -270,9 +405,11 @@ interface GridCardProps {
   alphabet: AlphabetData;
   index: number;
   onPress: () => void;
+  cardWidth: number;
+  isLandscape: boolean;
 }
 
-const GridCard: React.FC<GridCardProps> = ({ alphabet, index, onPress }) => {
+const GridCard: React.FC<GridCardProps> = ({ alphabet, index, onPress, cardWidth, isLandscape }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const balloonColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
@@ -283,31 +420,41 @@ const GridCard: React.FC<GridCardProps> = ({ alphabet, index, onPress }) => {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      delay: index * 25,
+      delay: index * 15,
       tension: 60,
       friction: 8,
     }).start();
   }, [scaleAnim, index]);
 
+  const balloonSize = isLandscape ? 36 : 44;
+  const imageSize = isLandscape ? 32 : 45;
+
   return (
-    <Animated.View style={[styles.gridCard, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[styles.gridCard, { width: cardWidth, transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[styles.gridCardInner, { borderColor: borderColor }]}
+        style={[
+          styles.gridCardInner, 
+          { borderColor: borderColor },
+          isLandscape && styles.gridCardInnerLandscape,
+        ]}
         activeOpacity={0.8}
       >
-        <View style={[styles.gridBalloon, { backgroundColor: balloonColor }]}>
-          <Text style={styles.gridBalloonLetter}>{alphabet.letter}</Text>
+        <View style={[
+          styles.gridBalloon, 
+          { backgroundColor: balloonColor, width: balloonSize, height: balloonSize + 8, borderRadius: balloonSize / 2 }
+        ]}>
+          <Text style={[styles.gridBalloonLetter, isLandscape && { fontSize: 18 }]}>{alphabet.letter}</Text>
         </View>
 
         <View style={styles.gridImagesRow}>
           <View style={styles.gridImageBox}>
-            <Image source={image1} style={styles.gridImage} resizeMode="contain" />
-            <Text style={styles.gridImageLabel}>{alphabet.word1}</Text>
+            <Image source={image1} style={{ width: imageSize, height: imageSize, marginBottom: 4 }} resizeMode="contain" />
+            <Text style={[styles.gridImageLabel, isLandscape && { fontSize: 9 }]}>{alphabet.word1}</Text>
           </View>
           <View style={styles.gridImageBox}>
-            <Image source={image2} style={styles.gridImage} resizeMode="contain" />
-            <Text style={styles.gridImageLabel}>{alphabet.word2}</Text>
+            <Image source={image2} style={{ width: imageSize, height: imageSize, marginBottom: 4 }} resizeMode="contain" />
+            <Text style={[styles.gridImageLabel, isLandscape && { fontSize: 9 }]}>{alphabet.word2}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -1044,9 +1191,11 @@ interface WritingGridCardProps {
   alphabet: AlphabetData;
   index: number;
   onPress: () => void;
+  cardWidth: number;
+  isLandscape: boolean;
 }
 
-const WritingGridCard: React.FC<WritingGridCardProps> = ({ alphabet, index, onPress }) => {
+const WritingGridCard: React.FC<WritingGridCardProps> = ({ alphabet, index, onPress, cardWidth, isLandscape }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
   const bgColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
@@ -1055,24 +1204,33 @@ const WritingGridCard: React.FC<WritingGridCardProps> = ({ alphabet, index, onPr
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      delay: index * 20,
+      delay: index * 15,
       tension: 60,
       friction: 8,
     }).start();
   }, [scaleAnim, index]);
 
+  const circleSize = isLandscape ? 40 : 50;
+
   return (
-    <Animated.View style={[writingStyles.gridCard, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[writingStyles.gridCard, { width: cardWidth, transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[writingStyles.gridCardInner, { borderColor }]}
+        style={[
+          writingStyles.gridCardInner, 
+          { borderColor },
+          isLandscape && { padding: 8, borderRadius: 12, borderWidth: 2 }
+        ]}
         activeOpacity={0.8}
       >
-        <View style={[writingStyles.letterCircle, { backgroundColor: bgColor }]}>
-          <Text style={writingStyles.gridLetter}>{alphabet.letter}</Text>
+        <View style={[
+          writingStyles.letterCircle, 
+          { backgroundColor: bgColor, width: circleSize, height: circleSize, borderRadius: circleSize / 2 }
+        ]}>
+          <Text style={[writingStyles.gridLetter, isLandscape && { fontSize: 20 }]}>{alphabet.letter}</Text>
         </View>
-        <Text style={writingStyles.gridLetterLower}>{alphabet.letter.toLowerCase()}</Text>
-        <Text style={writingStyles.gridWriteHint}>✏️ Write</Text>
+        <Text style={[writingStyles.gridLetterLower, isLandscape && { fontSize: 18, marginBottom: 3 }]}>{alphabet.letter.toLowerCase()}</Text>
+        <Text style={[writingStyles.gridWriteHint, isLandscape && { fontSize: 9 }]}>✏️ Write</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -1089,6 +1247,13 @@ export const AlphabetsScreen: React.FC<AlphabetsScreenProps> = ({ navigation }) 
   const [viewMode, setViewMode] = useState<'grid' | 'flashcard'>('grid');
   const [writingSelectedIndex, setWritingSelectedIndex] = useState<number | null>(null);
   const [writingViewMode, setWritingViewMode] = useState<'grid' | 'practice'>('grid');
+  
+  // Responsive layout
+  const { width: screenWidth, isLandscape, cardWidth } = useResponsiveLayout();
+  const columns = isLandscape ? 6 : 2;
+  const gap = isLandscape ? 8 : 10;
+  const padding = isLandscape ? 10 : 15;
+  const gridCardWidth = cardWidth(columns, gap, padding + insets.left + insets.right);
 
   const openFlashcard = (index: number) => {
     setSelectedIndex(index);
@@ -1205,35 +1370,46 @@ const BG_IMAGES = {
       </View>
 
       {/* Mute Button - Top Right */}
-      <MuteButton style={{ position: 'absolute', right: 15, top: insets.top + 15, zIndex: 100 }} size="medium" />
+      <MuteButton 
+        style={{ position: 'absolute', right: insets.right + 15, top: insets.top + 10, zIndex: 100 }} 
+        size={isLandscape ? 'small' : 'medium'} 
+      />
 
       {/* Main Header with Back Button */}
       {!isInDetailView && (
-        <View style={[styles.header, { marginTop: insets.top + 10 }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
+        <View style={[
+          styles.header, 
+          { marginTop: insets.top + (isLandscape ? 5 : 10), paddingHorizontal: insets.left + 15 },
+          isLandscape && styles.headerLandscape,
+        ]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, isLandscape && styles.backBtnLandscape]}>
+            <Text style={[styles.backText, isLandscape && styles.backTextLandscape]}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>🎈 ABC</Text>
+          <Text style={[styles.headerTitle, isLandscape && styles.headerTitleLandscape]}>🎈 ABC</Text>
           <View style={styles.headerSpace} />
         </View>
       )}
 
       {/* Tab Navigation - Only show when not in detail view */}
       {!isInDetailView && (
-        <View style={styles.tabContainer}>
+        <View style={[
+          styles.tabContainer, 
+          { marginHorizontal: insets.left + 15 },
+          isLandscape && styles.tabContainerLandscape,
+        ]}>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'learn' && styles.tabButtonActive]}
+            style={[styles.tabButton, activeTab === 'learn' && styles.tabButtonActive, isLandscape && styles.tabButtonLandscape]}
             onPress={() => setActiveTab('learn')}
           >
-            <Text style={[styles.tabText, activeTab === 'learn' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, activeTab === 'learn' && styles.tabTextActive, isLandscape && styles.tabTextLandscape]}>
               📚 Learn ABC
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'write' && styles.tabButtonActive]}
+            style={[styles.tabButton, activeTab === 'write' && styles.tabButtonActive, isLandscape && styles.tabButtonLandscape]}
             onPress={() => setActiveTab('write')}
           >
-            <Text style={[styles.tabText, activeTab === 'write' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, activeTab === 'write' && styles.tabTextActive, isLandscape && styles.tabTextLandscape]}>
               ✏️ Write ABC
             </Text>
           </TouchableOpacity>
@@ -1245,18 +1421,26 @@ const BG_IMAGES = {
         <>
           {viewMode === 'grid' ? (
             <>
-              <View style={styles.instructionBox}>
-                <Text style={styles.instructionText}>✨ Tap to learn 2 words + sentence! ✨</Text>
+              <View style={[styles.instructionBox, isLandscape && styles.instructionBoxLandscape]}>
+                <Text style={[styles.instructionText, isLandscape && styles.instructionTextLandscape]}>✨ Tap to learn 2 words + sentence! ✨</Text>
               </View>
 
-              <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
-                <View style={styles.gridWrapper}>
+              <ScrollView 
+                contentContainerStyle={[
+                  styles.gridContainer,
+                  { paddingHorizontal: padding + insets.left, paddingRight: padding + insets.right }
+                ]} 
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={[styles.gridWrapper, { gap: gap }]}>
                   {ALPHABETS.map((alphabet, idx) => (
                     <GridCard
                       key={alphabet.letter}
                       alphabet={alphabet}
                       index={idx}
                       onPress={() => openFlashcard(idx)}
+                      cardWidth={gridCardWidth}
+                      isLandscape={isLandscape}
                     />
                   ))}
                 </View>
@@ -1278,6 +1462,8 @@ const BG_IMAGES = {
                   onNext={goToNext}
                   hasPrevious={selectedIndex > 0}
                   hasNext={selectedIndex < ALPHABETS.length - 1}
+                  isLandscape={isLandscape}
+                  screenWidth={screenWidth}
                 />
               )}
             </>
@@ -1290,18 +1476,26 @@ const BG_IMAGES = {
         <>
           {writingViewMode === 'grid' ? (
             <>
-              <View style={styles.instructionBox}>
-                <Text style={styles.instructionText}>✏️ Select a letter to practice writing! ✏️</Text>
+              <View style={[styles.instructionBox, isLandscape && styles.instructionBoxLandscape]}>
+                <Text style={[styles.instructionText, isLandscape && styles.instructionTextLandscape]}>✏️ Select a letter to practice writing! ✏️</Text>
               </View>
 
-              <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
-                <View style={styles.gridWrapper}>
+              <ScrollView 
+                contentContainerStyle={[
+                  styles.gridContainer,
+                  { paddingHorizontal: padding + insets.left, paddingRight: padding + insets.right }
+                ]} 
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={[styles.gridWrapper, { gap: gap }]}>
                   {ALPHABETS.map((alphabet, idx) => (
                     <WritingGridCard
                       key={`write-${alphabet.letter}`}
                       alphabet={alphabet}
                       index={idx}
                       onPress={() => openWritingPractice(idx)}
+                      cardWidth={gridCardWidth}
+                      isLandscape={isLandscape}
                     />
                   ))}
                 </View>
@@ -1309,11 +1503,11 @@ const BG_IMAGES = {
             </>
           ) : (
             <>
-              <View style={[styles.flashcardHeader, { marginTop: insets.top + 10 }]}>
-                <TouchableOpacity onPress={closeWritingPractice} style={styles.backArrowBtn}>
-                  <Text style={styles.backArrowText}>↩</Text>
+              <View style={[styles.flashcardHeader, { marginTop: insets.top + 5, paddingHorizontal: insets.left + 15 }]}>
+                <TouchableOpacity onPress={closeWritingPractice} style={[styles.backArrowBtn, isLandscape && { width: 50, height: 50 }]}>
+                  <Text style={[styles.backArrowText, isLandscape && { fontSize: 22 }]}>↩</Text>
                 </TouchableOpacity>
-                <Text style={styles.writingHeaderTitle}>✏️ Writing Practice</Text>
+                <Text style={[styles.writingHeaderTitle, isLandscape && { fontSize: 18 }]}>✏️ Writing Practice</Text>
                 <View style={{ width: 65 }} />
               </View>
 
@@ -1528,16 +1722,30 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     zIndex: 10,
   },
+  headerLandscape: {
+    marginBottom: 5,
+  },
   backBtn: {
     backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 20,
   },
+  backBtnLandscape: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
   backText: {
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.purple,
+  },
+  backTextLandscape: {
+    fontSize: 13,
+  },
+  headerTitleLandscape: {
+    fontSize: 18,
   },
   headerTitle: {
     fontSize: 22,
@@ -1562,17 +1770,15 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   gridContainer: {
-    paddingHorizontal: 8,
     paddingBottom: 50,
   },
   gridWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   gridCard: {
-    width: CARD_WIDTH,
-    margin: 6,
+    marginBottom: 6,
   },
   gridCardInner: {
     backgroundColor: '#fff',
@@ -1586,13 +1792,15 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
   },
+  gridCardInnerLandscape: {
+    borderRadius: 14,
+    borderWidth: 3,
+    padding: 8,
+  },
   gridBalloon: {
-    width: 44,
-    height: 52,
-    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   gridBalloonLetter: {
     fontSize: 24,
@@ -1931,6 +2139,27 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: '#333',
+  },
+  tabContainerLandscape: {
+    marginBottom: 5,
+    borderRadius: 18,
+    padding: 3,
+  },
+  tabButtonLandscape: {
+    paddingVertical: 8,
+    borderRadius: 15,
+  },
+  tabTextLandscape: {
+    fontSize: 13,
+  },
+  instructionBoxLandscape: {
+    paddingVertical: 6,
+    marginHorizontal: 10,
+    marginBottom: 5,
+    borderRadius: 15,
+  },
+  instructionTextLandscape: {
+    fontSize: 11,
   },
   writingHeaderTitle: {
     flex: 1,

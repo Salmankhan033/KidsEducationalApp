@@ -14,6 +14,7 @@ import { PIANO_KEYS } from '../constants/gameData';
 import { speakWord, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,6 +34,7 @@ interface PianoGameScreenProps {
 
 export const PianoGameScreen: React.FC<PianoGameScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { isLandscape } = useResponsiveLayout();
   const [playedNotes, setPlayedNotes] = useState<string[]>([]);
   const [mode, setMode] = useState<'free' | 'learn'>('free');
   const [currentLearnIndex, setCurrentLearnIndex] = useState(0);
@@ -97,52 +99,54 @@ export const PianoGameScreen: React.FC<PianoGameScreenProps> = ({ navigation }) 
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* Header */}
       <ScreenHeader
         title="Piano"
         icon={SCREEN_ICONS.keyboard}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
       {/* Mode Toggle */}
-      <View style={styles.modeRow}>
+      <View style={[styles.modeRow, isLandscape && { marginBottom: 8 }]}>
         <TouchableOpacity
-          style={[styles.modeButton, mode === 'free' && styles.modeActive]}
+          style={[styles.modeButton, isLandscape && { paddingHorizontal: 15, paddingVertical: 6 }, mode === 'free' && styles.modeActive]}
           onPress={() => setMode('free')}
         >
-          <Text style={[styles.modeText, mode === 'free' && styles.modeTextActive]}>🎵 Free Play</Text>
+          <Text style={[styles.modeText, isLandscape && { fontSize: 12 }, mode === 'free' && styles.modeTextActive]}>🎵 Free Play</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.modeButton, mode === 'learn' && styles.modeActive]}
+          style={[styles.modeButton, isLandscape && { paddingHorizontal: 15, paddingVertical: 6 }, mode === 'learn' && styles.modeActive]}
           onPress={() => { setMode('learn'); setCurrentLearnIndex(0); }}
         >
-          <Text style={[styles.modeText, mode === 'learn' && styles.modeTextActive]}>📖 Learn</Text>
+          <Text style={[styles.modeText, isLandscape && { fontSize: 12 }, mode === 'learn' && styles.modeTextActive]}>📖 Learn</Text>
         </TouchableOpacity>
       </View>
 
       {/* Notes Display */}
-      <View style={styles.notesDisplay}>
-        <Text style={styles.notesLabel}>
+      <View style={[styles.notesDisplay, isLandscape && { marginHorizontal: 30, paddingVertical: 8, paddingHorizontal: 15, marginBottom: 10, minHeight: 50 }]}>
+        <Text style={[styles.notesLabel, isLandscape && { fontSize: 12, marginBottom: 5 }]}>
           {mode === 'learn' ? `Play: ${PIANO_KEYS[currentLearnIndex].sound.toUpperCase()}` : 'Notes Played:'}
         </Text>
         <View style={styles.notesRow}>
           {playedNotes.map((note, index) => (
-            <View key={index} style={[styles.noteTag, { backgroundColor: NOTES_COLORS[PIANO_KEYS.findIndex(k => k.note === note)] }]}>
-              <Text style={styles.noteText}>{note}</Text>
+            <View key={index} style={[styles.noteTag, isLandscape && { paddingHorizontal: 8, paddingVertical: 4 }, { backgroundColor: NOTES_COLORS[PIANO_KEYS.findIndex(k => k.note === note)] }]}>
+              <Text style={[styles.noteText, isLandscape && { fontSize: 12 }]}>{note}</Text>
             </View>
           ))}
         </View>
       </View>
 
       {/* Piano Keys */}
-      <View style={styles.pianoContainer}>
+      <View style={[styles.pianoContainer, isLandscape && { flex: 1, paddingHorizontal: 20, marginBottom: 10 }]}>
         <View style={styles.keysRow}>
           {PIANO_KEYS.map((key, index) => (
             <Animated.View
               key={key.note}
               style={[
                 styles.keyContainer,
+                isLandscape && { width: (width - 80) / 7 },
                 { transform: [{ scale: scaleAnims[index] }] },
               ]}
             >
@@ -150,12 +154,13 @@ export const PianoGameScreen: React.FC<PianoGameScreenProps> = ({ navigation }) 
                 onPress={() => playNote(key.note, key.sound, index)}
                 style={[
                   styles.pianoKey,
+                  isLandscape && { height: 140 },
                   { backgroundColor: NOTES_COLORS[index] },
                   mode === 'learn' && index === currentLearnIndex && styles.highlightKey,
                 ]}
               >
-                <Text style={styles.keyNote}>{key.note}</Text>
-                <Text style={styles.keySound}>{key.sound}</Text>
+                <Text style={[styles.keyNote, isLandscape && { fontSize: 18 }]}>{key.note}</Text>
+                <Text style={[styles.keySound, isLandscape && { fontSize: 10 }]}>{key.sound}</Text>
               </TouchableOpacity>
             </Animated.View>
           ))}
@@ -163,31 +168,35 @@ export const PianoGameScreen: React.FC<PianoGameScreenProps> = ({ navigation }) 
       </View>
 
       {/* Action Buttons */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity onPress={playMelody} style={styles.melodyButton}>
-          <Text style={styles.actionText}>🎶 Play Do Re Mi</Text>
+      <View style={[styles.actionsRow, isLandscape && { marginBottom: 8, paddingBottom: insets.bottom }]}>
+        <TouchableOpacity onPress={playMelody} style={[styles.melodyButton, isLandscape && { paddingHorizontal: 15, paddingVertical: 8 }]}>
+          <Text style={[styles.actionText, isLandscape && { fontSize: 12 }]}>🎶 Play Do Re Mi</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={clearNotes} style={styles.clearButton}>
-          <Text style={styles.actionText}>🗑️ Clear</Text>
+        <TouchableOpacity onPress={clearNotes} style={[styles.clearButton, isLandscape && { paddingHorizontal: 15, paddingVertical: 8 }]}>
+          <Text style={[styles.actionText, isLandscape && { fontSize: 12 }]}>🗑️ Clear</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Instructions */}
-      <View style={styles.instructionBox}>
-        <Text style={styles.instructionText}>
-          {mode === 'free' 
-            ? '🎵 Tap the colorful keys to make music!' 
-            : '📖 Follow the notes in order: Do, Re, Mi, Fa, Sol, La, Si'}
-        </Text>
-      </View>
+      {/* Instructions - Hidden in landscape */}
+      {!isLandscape && (
+        <View style={styles.instructionBox}>
+          <Text style={styles.instructionText}>
+            {mode === 'free' 
+              ? '🎵 Tap the colorful keys to make music!' 
+              : '📖 Follow the notes in order: Do, Re, Mi, Fa, Sol, La, Si'}
+          </Text>
+        </View>
+      )}
 
-      {/* Fun Characters */}
-      <View style={styles.charactersRow}>
-        <Text style={styles.character}>🎤</Text>
-        <Text style={styles.character}>🎸</Text>
-        <Text style={styles.character}>🥁</Text>
-        <Text style={styles.character}>🎺</Text>
-      </View>
+      {/* Fun Characters - Hidden in landscape */}
+      {!isLandscape && (
+        <View style={styles.charactersRow}>
+          <Text style={styles.character}>🎤</Text>
+          <Text style={styles.character}>🎸</Text>
+          <Text style={styles.character}>🥁</Text>
+          <Text style={styles.character}>🎺</Text>
+        </View>
+      )}
     </View>
   );
 };

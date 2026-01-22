@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,11 @@ import {
   Animated,
   Dimensions,
   Image,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGender, Gender, CHILD_IMAGES, GENDER_THEMES } from '../context/GenderContext';
+import { useGender, Gender, CHILD_IMAGES } from '../context/GenderContext';
 import { speak, setVoiceGender } from '../utils/speech';
-
-const { width, height } = Dimensions.get('window');
 
 interface GenderSelectionModalProps {
   visible: boolean;
@@ -24,25 +23,35 @@ const GenderSelectionModal: React.FC<GenderSelectionModalProps> = ({ visible, on
   const { setGender, setIsFirstLaunch } = useGender();
   const insets = useSafeAreaInsets();
   
-  const slideAnim = useRef(new Animated.Value(height)).current;
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+  
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  const isLandscape = dimensions.width > dimensions.height;
+  
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      // Slide up animation
-      Animated.spring(slideAnim, {
-        toValue: 0,
+      // Fade in animation
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
         useNativeDriver: true,
-        tension: 50,
-        friction: 8,
       }).start();
 
       // Scale animation for content
       Animated.spring(scaleAnim, {
         toValue: 1,
         useNativeDriver: true,
-        delay: 200,
+        delay: 100,
         tension: 60,
         friction: 7,
       }).start();
@@ -63,42 +72,32 @@ const GenderSelectionModal: React.FC<GenderSelectionModalProps> = ({ visible, on
         ])
       ).start();
     } else {
-      Animated.timing(slideAnim, {
-        toValue: height,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0);
     }
-  }, [visible, slideAnim, scaleAnim, bounceAnim]);
+  }, [visible, scaleAnim, bounceAnim, fadeAnim]);
 
   const handleGenderSelect = async (selectedGender: Gender) => {
-    // Set the gender in context
     await setGender(selectedGender);
-    
-    // Set the voice based on gender and wait for it
     await setVoiceGender(selectedGender);
-    
-    // Small delay to ensure voice is set
     await new Promise(resolve => setTimeout(resolve, 200));
     
-    // Play welcome message with appropriate voice
     if (selectedGender === 'male') {
       await speak('Hey champion! Let\'s learn and play together!');
     } else if (selectedGender === 'female') {
       await speak('Hello princess! Let\'s have fun learning!');
     }
     
-    // Mark first launch as complete
     await setIsFirstLaunch(false);
-    
-    // Close modal
     onClose();
   };
 
   const translateY = bounceAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -10],
+    outputRange: [0, -8],
   });
+
+  const cardSize = isLandscape ? 90 : 110;
 
   return (
     <Modal
@@ -110,101 +109,145 @@ const GenderSelectionModal: React.FC<GenderSelectionModalProps> = ({ visible, on
       <View style={styles.overlay}>
         {/* Decorative background elements */}
         <View style={styles.decorationsContainer}>
-          <Text style={[styles.floatingEmoji, styles.emoji1]}>⭐</Text>
-          <Text style={[styles.floatingEmoji, styles.emoji2]}>🌈</Text>
-          <Text style={[styles.floatingEmoji, styles.emoji3]}>🎈</Text>
-          <Text style={[styles.floatingEmoji, styles.emoji4]}>🦋</Text>
-          <Text style={[styles.floatingEmoji, styles.emoji5]}>🌟</Text>
-          <Text style={[styles.floatingEmoji, styles.emoji6]}>🎉</Text>
+          <Text style={[styles.floatingEmoji, { top: '8%', left: '5%' }]}>⭐</Text>
+          <Text style={[styles.floatingEmoji, { top: '12%', right: '8%' }]}>🌈</Text>
+          <Text style={[styles.floatingEmoji, { bottom: '15%', left: '8%' }]}>🎈</Text>
+          <Text style={[styles.floatingEmoji, { top: '40%', left: '3%' }]}>🦋</Text>
+          <Text style={[styles.floatingEmoji, { bottom: '20%', right: '5%' }]}>🌟</Text>
+          <Text style={[styles.floatingEmoji, { top: '5%', left: '45%' }]}>🎉</Text>
         </View>
 
         <Animated.View
           style={[
-            styles.bottomSheet,
+            styles.contentContainer,
             {
-              transform: [{ translateY: slideAnim }],
-              paddingBottom: insets.bottom + 20,
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+              paddingLeft: insets.left + 20,
+              paddingRight: insets.right + 20,
+              paddingTop: insets.top + 10,
+              paddingBottom: insets.bottom + 10,
             },
           ]}
         >
-          {/* Handle bar */}
-          <View style={styles.handleBar} />
-
-          {/* Title Section */}
-          <Animated.View style={[styles.titleSection, { transform: [{ scale: scaleAnim }] }]}>
-            <Text style={styles.welcomeEmoji}>👋</Text>
-            <Text style={styles.title}>Welcome Little One!</Text>
-            <Text style={styles.subtitle}>Who's going to learn today?</Text>
-          </Animated.View>
-
-          {/* Gender Selection Cards */}
-          <Animated.View style={[styles.cardsContainer, { transform: [{ scale: scaleAnim }] }]}>
-            {/* Boy Card */}
-            <TouchableOpacity
-              style={[styles.genderCard, styles.boyCard]}
-              onPress={() => handleGenderSelect('male')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.cardGlow, styles.boyGlow]} />
-              <View style={styles.emojiContainer}>
-                <Text style={styles.cardEmoji}>🚀</Text>
-                <Text style={styles.cardEmoji}>⭐</Text>
+          <ScrollView 
+            contentContainerStyle={[
+              styles.scrollContent,
+              isLandscape && styles.scrollContentLandscape
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Left side - Title Section */}
+            <View style={[
+              styles.titleSection,
+              isLandscape && styles.titleSectionLandscape
+            ]}>
+              <Text style={[styles.welcomeEmoji, isLandscape && styles.welcomeEmojiLandscape]}>👋</Text>
+              <Text style={[styles.title, isLandscape && styles.titleLandscape]}>Welcome!</Text>
+              <Text style={[styles.subtitle, isLandscape && styles.subtitleLandscape]}>Who's learning today?</Text>
+              <View style={[styles.messageContainer, isLandscape && styles.messageContainerLandscape]}>
+                <Text style={[styles.message, isLandscape && styles.messageLandscape]}>🎨 Let's make learning fun! 🎨</Text>
               </View>
-              <Animated.View style={[styles.imageContainer, styles.boyImageBg, { transform: [{ translateY }] }]}>
-                <Image
-                  source={CHILD_IMAGES.male.avatar}
-                  style={styles.characterImage}
-                  resizeMode="cover"
-                />
-              </Animated.View>
-              <Text style={[styles.genderLabel, styles.boyLabel]}>I'm a Boy!</Text>
-              <Text style={styles.genderDescription}>Adventure awaits! 🎮</Text>
-              <View style={styles.sparkles}>
-                <Text style={styles.sparkleEmoji}>✨</Text>
-                <Text style={styles.sparkleEmoji}>💫</Text>
-              </View>
-            </TouchableOpacity>
+            </View>
 
-            {/* Girl Card */}
-            <TouchableOpacity
-              style={[styles.genderCard, styles.girlCard]}
-              onPress={() => handleGenderSelect('female')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.cardGlow, styles.girlGlow]} />
-              <View style={styles.emojiContainer}>
-                <Text style={styles.cardEmoji}>🌸</Text>
-                <Text style={styles.cardEmoji}>💖</Text>
-              </View>
-              <Animated.View style={[styles.imageContainer, styles.girlImageBg, { transform: [{ translateY }] }]}>
-                <Image
-                  source={CHILD_IMAGES.female.avatar}
-                  style={styles.characterImage}
-                  resizeMode="cover"
-                />
-              </Animated.View>
-              <Text style={[styles.genderLabel, styles.girlLabel]}>I'm a Girl!</Text>
-              <Text style={styles.genderDescription}>Magic awaits! ✨</Text>
-              <View style={styles.sparkles}>
-                <Text style={styles.sparkleEmoji}>🦋</Text>
-                <Text style={styles.sparkleEmoji}>🌟</Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
+            {/* Right side - Gender Cards */}
+            <View style={[
+              styles.cardsContainer,
+              isLandscape && styles.cardsContainerLandscape
+            ]}>
+              {/* Boy Card */}
+              <TouchableOpacity
+                style={[
+                  styles.genderCard, 
+                  styles.boyCard,
+                  isLandscape && styles.genderCardLandscape
+                ]}
+                onPress={() => handleGenderSelect('male')}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.cardGlow, styles.boyGlow]} />
+                <View style={styles.emojiContainer}>
+                  <Text style={[styles.cardEmoji, isLandscape && styles.cardEmojiLandscape]}>🚀</Text>
+                  <Text style={[styles.cardEmoji, isLandscape && styles.cardEmojiLandscape]}>⭐</Text>
+                </View>
+                <Animated.View style={[
+                  styles.imageContainer, 
+                  styles.boyImageBg, 
+                  { 
+                    transform: [{ translateY }],
+                    width: cardSize,
+                    height: cardSize,
+                    borderRadius: cardSize / 2,
+                  }
+                ]}>
+                  <Image
+                    source={CHILD_IMAGES.male.avatar}
+                    style={[
+                      styles.characterImage,
+                      {
+                        width: cardSize - 8,
+                        height: cardSize - 8,
+                        borderRadius: (cardSize - 8) / 2,
+                      }
+                    ]}
+                    resizeMode="cover"
+                  />
+                </Animated.View>
+                <Text style={[styles.genderLabel, styles.boyLabel, isLandscape && styles.genderLabelLandscape]}>I'm a Boy!</Text>
+                <Text style={[styles.genderDescription, isLandscape && styles.genderDescriptionLandscape]}>Adventure awaits! 🎮</Text>
+                <View style={styles.sparkles}>
+                  <Text style={styles.sparkleEmoji}>✨</Text>
+                  <Text style={styles.sparkleEmoji}>💫</Text>
+                </View>
+              </TouchableOpacity>
 
-          {/* Fun message */}
-          <Animated.View style={[styles.messageContainer, { transform: [{ scale: scaleAnim }] }]}>
-            <Text style={styles.message}>🎨 Let's make learning fun together! 🎨</Text>
-          </Animated.View>
-
-          {/* Decorative bottom elements */}
-          <View style={styles.bottomDecoration}>
-            <Text style={styles.decorEmoji}>🌈</Text>
-            <Text style={styles.decorEmoji}>⭐</Text>
-            <Text style={styles.decorEmoji}>🎈</Text>
-            <Text style={styles.decorEmoji}>🦄</Text>
-            <Text style={styles.decorEmoji}>🌟</Text>
-          </View>
+              {/* Girl Card */}
+              <TouchableOpacity
+                style={[
+                  styles.genderCard, 
+                  styles.girlCard,
+                  isLandscape && styles.genderCardLandscape
+                ]}
+                onPress={() => handleGenderSelect('female')}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.cardGlow, styles.girlGlow]} />
+                <View style={styles.emojiContainer}>
+                  <Text style={[styles.cardEmoji, isLandscape && styles.cardEmojiLandscape]}>🌸</Text>
+                  <Text style={[styles.cardEmoji, isLandscape && styles.cardEmojiLandscape]}>💖</Text>
+                </View>
+                <Animated.View style={[
+                  styles.imageContainer, 
+                  styles.girlImageBg, 
+                  { 
+                    transform: [{ translateY }],
+                    width: cardSize,
+                    height: cardSize,
+                    borderRadius: cardSize / 2,
+                  }
+                ]}>
+                  <Image
+                    source={CHILD_IMAGES.female.avatar}
+                    style={[
+                      styles.characterImage,
+                      {
+                        width: cardSize - 8,
+                        height: cardSize - 8,
+                        borderRadius: (cardSize - 8) / 2,
+                      }
+                    ]}
+                    resizeMode="cover"
+                  />
+                </Animated.View>
+                <Text style={[styles.genderLabel, styles.girlLabel, isLandscape && styles.genderLabelLandscape]}>I'm a Girl!</Text>
+                <Text style={[styles.genderDescription, isLandscape && styles.genderDescriptionLandscape]}>Magic awaits! ✨</Text>
+                <View style={styles.sparkles}>
+                  <Text style={styles.sparkleEmoji}>🦋</Text>
+                  <Text style={styles.sparkleEmoji}>🌟</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
@@ -214,8 +257,7 @@ const GenderSelectionModal: React.FC<GenderSelectionModalProps> = ({ visible, on
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: '#FFFAF0',
   },
   decorationsContainer: {
     position: 'absolute',
@@ -223,70 +265,56 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 0,
   },
   floatingEmoji: {
     position: 'absolute',
-    fontSize: 30,
+    fontSize: 28,
   },
-  emoji1: {
-    top: '10%',
-    left: '10%',
+  contentContainer: {
+    flex: 1,
+    zIndex: 1,
   },
-  emoji2: {
-    top: '15%',
-    right: '15%',
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
   },
-  emoji3: {
-    top: '25%',
-    left: '20%',
-  },
-  emoji4: {
-    top: '20%',
-    right: '25%',
-  },
-  emoji5: {
-    top: '30%',
-    left: '8%',
-  },
-  emoji6: {
-    top: '35%',
-    right: '10%',
-  },
-  bottomSheet: {
-    backgroundColor: '#FFFAF0',
-    borderTopLeftRadius: 35,
-    borderTopRightRadius: 35,
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  handleBar: {
-    width: 50,
-    height: 5,
-    backgroundColor: '#DDD',
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginBottom: 15,
+  scrollContentLandscape: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 30,
   },
   titleSection: {
     alignItems: 'center',
     marginBottom: 20,
   },
+  titleSectionLandscape: {
+    marginBottom: 0,
+    marginRight: 20,
+    flex: 0.35,
+    justifyContent: 'center',
+  },
   welcomeEmoji: {
     fontSize: 50,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  welcomeEmojiLandscape: {
+    fontSize: 40,
+    marginBottom: 5,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '900',
     color: '#9B59B6',
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
+  },
+  titleLandscape: {
+    fontSize: 24,
   },
   subtitle: {
     fontSize: 16,
@@ -294,16 +322,22 @@ const styles = StyleSheet.create({
     marginTop: 5,
     fontWeight: '600',
   },
+  subtitleLandscape: {
+    fontSize: 14,
+    marginTop: 3,
+  },
   cardsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    justifyContent: 'center',
     gap: 15,
   },
+  cardsContainerLandscape: {
+    flex: 0.65,
+    gap: 20,
+  },
   genderCard: {
-    flex: 1,
     alignItems: 'center',
-    padding: 20,
+    padding: 18,
     borderRadius: 25,
     borderWidth: 4,
     position: 'relative',
@@ -313,6 +347,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
+    minWidth: 150,
+  },
+  genderCardLandscape: {
+    padding: 14,
+    borderRadius: 20,
+    minWidth: 140,
+    flex: 1,
+    maxWidth: 200,
   },
   boyCard: {
     backgroundColor: '#E6F3FF',
@@ -345,15 +387,15 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   cardEmoji: {
-    fontSize: 22,
+    fontSize: 20,
+  },
+  cardEmojiLandscape: {
+    fontSize: 16,
   },
   imageContainer: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 4,
     borderColor: 'rgba(255,255,255,0.8)',
     shadowColor: '#000',
@@ -370,23 +412,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFD1E8',
   },
   characterImage: {
-    width: 102,
-    height: 102,
-    borderRadius: 51,
+    // Dynamic sizing applied inline
   },
   sparkles: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
-    marginTop: 5,
+    gap: 8,
+    marginTop: 4,
   },
   sparkleEmoji: {
-    fontSize: 16,
+    fontSize: 14,
   },
   genderLabel: {
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 3,
+  },
+  genderLabelLandscape: {
+    fontSize: 16,
+    marginBottom: 2,
   },
   boyLabel: {
     color: '#4A90D9',
@@ -399,28 +443,35 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '600',
   },
+  genderDescriptionLandscape: {
+    fontSize: 11,
+  },
   messageContainer: {
     alignItems: 'center',
-    marginBottom: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    marginTop: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    shadowColor: '#9B59B6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  messageContainerLandscape: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   message: {
     fontSize: 14,
     fontWeight: '700',
     color: '#9B59B6',
   },
-  bottomDecoration: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-  },
-  decorEmoji: {
-    fontSize: 25,
+  messageLandscape: {
+    fontSize: 12,
   },
 });
 
 export default GenderSelectionModal;
-

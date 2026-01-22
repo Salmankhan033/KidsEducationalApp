@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Animated,
   Image,
-  Dimensions,
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,13 +17,10 @@ import { speakSong, stopSpeaking } from '../utils/speech';
 import { SCREEN_ICONS } from '../assets/images';
 import { MuteButton } from '../components';
 import { pauseBackgroundMusic, resumeBackgroundMusic } from '../utils/backgroundMusic';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
-// Enable playback in silence mode
 Sound.setCategory('Playback', true);
 
-const { width, height } = Dimensions.get('window');
-
-// Decorative background images
 const BG_IMAGES = {
   sun: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2600.png' },
   cloud: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2601.png' },
@@ -50,6 +46,7 @@ interface SongCardProps {
   onPress: () => void;
   onPlay: () => void;
   onStop: () => void;
+  isLandscape: boolean;
 }
 
 const SongCard: React.FC<SongCardProps> = ({ 
@@ -60,6 +57,7 @@ const SongCard: React.FC<SongCardProps> = ({
   onPress, 
   onPlay,
   onStop,
+  isLandscape,
 }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const expandAnim = useRef(new Animated.Value(0)).current;
@@ -112,58 +110,54 @@ const SongCard: React.FC<SongCardProps> = ({
           borderColor: song.color,
           transform: [{ scale: scaleAnim }],
         },
+        isLandscape && styles.songCardLandscape,
       ]}
     >
-      <TouchableOpacity onPress={onPress} style={styles.songTouchable}>
-        {/* Balloon decoration */}
-        <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: bounceAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }] }]}>
-          <View style={[styles.balloon, { backgroundColor: song.color }]}>
-            <Text style={styles.balloonEmoji}>{song.emoji}</Text>
+      <TouchableOpacity onPress={onPress} style={[styles.songTouchable, isLandscape && styles.songTouchableLandscape]}>
+        <Animated.View style={[
+          styles.balloonContainer, 
+          isLandscape && styles.balloonContainerLandscape,
+          { transform: [{ translateY: bounceAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }] }
+        ]}>
+          <View style={[styles.balloon, { backgroundColor: song.color }, isLandscape && styles.balloonLandscape]}>
+            <Text style={[styles.balloonEmoji, isLandscape && styles.balloonEmojiLandscape]}>{song.emoji}</Text>
           </View>
           <View style={[styles.balloonTail, { borderTopColor: song.color }]} />
           <View style={styles.balloonString} />
         </Animated.View>
 
-        <View style={styles.songHeader}>
-          <Text style={[styles.songTitle, { color: song.color }]}>{song.title}</Text>
-          <View style={[styles.expandBadge, { backgroundColor: song.color }]}>
-            <Text style={styles.expandText}>{isExpanded ? '▲' : '▼'}</Text>
+        <View style={[styles.songHeader, isLandscape && styles.songHeaderLandscape]}>
+          <Text style={[styles.songTitle, { color: song.color }, isLandscape && styles.songTitleLandscape]}>{song.title}</Text>
+          <View style={[styles.expandBadge, { backgroundColor: song.color }, isLandscape && styles.expandBadgeLandscape]}>
+            <Text style={[styles.expandText, isLandscape && styles.expandTextLandscape]}>{isExpanded ? '▲' : '▼'}</Text>
           </View>
         </View>
         
         {isExpanded && (
-          <Animated.View
-            style={[
-              styles.lyricsContainer,
-              {
-                opacity: expandAnim,
-              },
-            ]}
-          >
-            <View style={styles.lyricsBox}>
-              <Text style={styles.lyricsText}>{song.lyrics}</Text>
+          <Animated.View style={[styles.lyricsContainer, { opacity: expandAnim }]}>
+            <View style={[styles.lyricsBox, isLandscape && styles.lyricsBoxLandscape]}>
+              <Text style={[styles.lyricsText, isLandscape && styles.lyricsTextLandscape]}>{song.lyrics}</Text>
             </View>
             
-            {/* Play/Stop Button */}
             <TouchableOpacity 
               onPress={isPlaying ? onStop : onPlay}
               style={[
                 styles.playButton,
-                { backgroundColor: isPlaying ? '#E74C3C' : '#27AE60' }
+                { backgroundColor: isPlaying ? '#E74C3C' : '#27AE60' },
+                isLandscape && styles.playButtonLandscape,
               ]}
             >
               <Image 
                 source={isPlaying ? SCREEN_ICONS.stop : SCREEN_ICONS.play} 
-                style={styles.playButtonIcon} 
+                style={[styles.playButtonIcon, isLandscape && styles.playButtonIconLandscape]} 
                 resizeMode="contain"
               />
-              <Text style={styles.playButtonText}>
+              <Text style={[styles.playButtonText, isLandscape && styles.playButtonTextLandscape]}>
                 {isPlaying ? 'Stop Singing' : 'Sing Along!'}
               </Text>
             </TouchableOpacity>
             
-            {/* Animated Music Notes */}
-            <View style={styles.notesRow}>
+            <View style={[styles.notesRow, isLandscape && styles.notesRowLandscape]}>
               {[0, 1, 2, 3, 4].map((i) => (
                 <Animated.View
                   key={i}
@@ -184,7 +178,7 @@ const SongCard: React.FC<SongCardProps> = ({
                     },
                   ]}
                 >
-                  <Image source={BG_IMAGES.musicNote} style={styles.noteImage} resizeMode="contain" />
+                  <Image source={BG_IMAGES.musicNote} style={[styles.noteImage, isLandscape && styles.noteImageLandscape]} resizeMode="contain" />
                 </Animated.View>
               ))}
             </View>
@@ -201,11 +195,11 @@ interface SongsScreenProps {
 
 export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { width, height, isLandscape } = useResponsiveLayout();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abcSongRef = useRef<Sound | null>(null);
 
-  // Cleanup function for ABC song
   const stopAbcSong = () => {
     if (abcSongRef.current) {
       try {
@@ -218,34 +212,23 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
     }
   };
 
-  // Play song from MP3 file
   const playSongAudio = (audioFile: string) => {
-    // Stop any existing playback
     stopAbcSong();
     stopSpeaking();
-    
-    // Pause background music so song can be heard clearly
     pauseBackgroundMusic();
-
     console.log('🎵 Loading song:', audioFile);
-    
-    // Try to play the song
     tryPlaySong(audioFile, 0);
   };
 
-  // Map song IDs to their audio files (using native bundle names)
   const SONG_AUDIO_FILES: { [key: number]: string } = {
-    1: 'abc_alphabet_song.mp3',  // ABC Song
-    5: 'alphabet_song.mp3',       // Alphabet Song (A is for Apple...)
+    1: 'abc_alphabet_song.mp3',
+    5: 'alphabet_song.mp3',
   };
 
-  // Alternative: Try loading from different locations
   const tryPlaySong = (audioFile: string, songId: number) => {
-    // First try the main bundle
     const sound = new Sound(audioFile, Sound.MAIN_BUNDLE, (error) => {
       if (error) {
         console.log('❌ Main bundle failed, trying without path:', audioFile, error);
-        // Try without specifying bundle (for Android)
         const sound2 = new Sound(audioFile, '', (error2) => {
           if (error2) {
             console.log('❌ Both attempts failed:', error2);
@@ -263,18 +246,11 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
 
   const playLoadedSound = (sound: Sound, audioFile: string) => {
     console.log('✓ Song loaded successfully:', audioFile);
-    console.log('Duration:', sound.getDuration(), 'seconds');
-    
     abcSongRef.current = sound;
     sound.setVolume(1.0);
     
     sound.play((success) => {
       console.log('Song play callback - success:', success);
-      if (success) {
-        console.log('✓ Song finished playing:', audioFile);
-      } else {
-        console.log('❌ Song playback failed:', audioFile);
-      }
       setPlayingId(null);
       stopAbcSong();
       resumeBackgroundMusic();
@@ -284,18 +260,14 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
   };
 
   const handlePlay = (song: typeof ALPHABET_SONGS[0]) => {
-    // Stop any current playback
     stopAbcSong();
     stopSpeaking();
-
     setPlayingId(song.id);
 
-    // Check if this song has an audio file
     const audioFile = SONG_AUDIO_FILES[song.id];
     if (audioFile) {
       playSongAudio(audioFile);
     } else {
-      // For other songs, use TTS
       speakSong(song.lyrics);
     }
   };
@@ -304,7 +276,6 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
     stopAbcSong();
     stopSpeaking();
     setPlayingId(null);
-    // Resume background music when stopping
     resumeBackgroundMusic();
   };
 
@@ -312,7 +283,6 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
     return () => {
       stopAbcSong();
       stopSpeaking();
-      // Resume background music when leaving screen
       resumeBackgroundMusic();
     };
   }, []);
@@ -321,56 +291,60 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Beautiful Kid-Friendly Background */}
-      <View style={styles.skyBackground}>
-        <Image source={BG_IMAGES.sun} style={styles.bgSun} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud1} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud2} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud3} />
-        <Image source={BG_IMAGES.rainbow} style={styles.bgRainbow} />
-        <Image source={BG_IMAGES.star} style={styles.bgStar1} />
-        <Image source={BG_IMAGES.star} style={styles.bgStar2} />
-        <Image source={BG_IMAGES.sparkle} style={styles.bgSparkle1} />
-        <Image source={BG_IMAGES.sparkle} style={styles.bgSparkle2} />
-        <Image source={BG_IMAGES.bird} style={styles.bgBird1} />
-        <Image source={BG_IMAGES.bird} style={styles.bgBird2} />
-        <Image source={BG_IMAGES.butterfly} style={styles.bgButterfly} />
-        <Image source={BG_IMAGES.musicalNotes} style={styles.bgMusic1} />
-        <Image source={BG_IMAGES.musicNote} style={styles.bgMusic2} />
+      {/* Background */}
+      <View style={[styles.skyBackground, { height: height * 0.75 }]}>
+        <Image source={BG_IMAGES.sun} style={[styles.bgElement, { top: 20, right: 20, width: 45, height: 45 }]} />
+        <Image source={BG_IMAGES.cloud} style={[styles.bgElement, { top: 40, left: 20, width: 35, height: 35 }]} />
+        <Image source={BG_IMAGES.rainbow} style={[styles.bgElement, { top: 60, left: '30%', width: 50, height: 50 }]} />
+        <Image source={BG_IMAGES.star} style={[styles.bgElement, { top: 80, left: 50, width: 20, height: 20 }]} />
+        <Image source={BG_IMAGES.musicNote} style={[styles.bgElement, { top: 100, right: 80, width: 25, height: 25 }]} />
+        <Image source={BG_IMAGES.musicalNotes} style={[styles.bgElement, { top: 120, left: '15%', width: 25, height: 25 }]} />
       </View>
 
-      {/* Grass with flowers */}
-      <View style={styles.grassBackground}>
-        <Image source={BG_IMAGES.tree} style={styles.bgTree1} />
-        <Image source={BG_IMAGES.tree} style={styles.bgTree2} />
-        <Image source={BG_IMAGES.flower} style={styles.bgFlower1} />
-        <Image source={BG_IMAGES.tulip} style={styles.bgFlower2} />
-        <Image source={BG_IMAGES.flower} style={styles.bgFlower3} />
-        <Image source={BG_IMAGES.tulip} style={styles.bgFlower4} />
-        <Image source={BG_IMAGES.bee} style={styles.bgBee} />
-        <Image source={BG_IMAGES.ladybug} style={styles.bgLadybug} />
+      {/* Grass */}
+      <View style={[styles.grassBackground, { height: height * 0.25 }]}>
+        <Image source={BG_IMAGES.tree} style={[styles.bgElement, { top: -20, left: 10, width: 40, height: 40 }]} />
+        <Image source={BG_IMAGES.tree} style={[styles.bgElement, { top: -15, right: 15, width: 35, height: 35 }]} />
+        <Image source={BG_IMAGES.flower} style={[styles.bgElement, { top: 15, left: 60, width: 25, height: 25 }]} />
+        <Image source={BG_IMAGES.tulip} style={[styles.bgElement, { top: 20, right: 50, width: 22, height: 22 }]} />
       </View>
 
-      {/* Mute Button - Top Right */}
-      <MuteButton style={{ position: 'absolute', right: 15, top: insets.top + 15, zIndex: 100 }} size="medium" />
+      {/* Mute Button */}
+      <MuteButton 
+        style={{ 
+          position: 'absolute', 
+          right: insets.right + 15, 
+          top: insets.top + 10, 
+          zIndex: 100 
+        }} 
+        size={isLandscape ? 'small' : 'medium'} 
+      />
 
       {/* Header */}
-      <View style={[styles.header, { marginTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={() => { handleStop(); navigation.goBack(); }} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
+      <View style={[
+        styles.header, 
+        { marginTop: insets.top + 10, paddingLeft: insets.left + 15, paddingRight: insets.right + 15 },
+        isLandscape && styles.headerLandscape,
+      ]}>
+        <TouchableOpacity onPress={() => { handleStop(); navigation.goBack(); }} style={[styles.backBtn, isLandscape && styles.backBtnLandscape]}>
+          <Text style={[styles.backText, isLandscape && styles.backTextLandscape]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>🎵 ABC Songs</Text>
+        <Text style={[styles.headerTitle, isLandscape && styles.headerTitleLandscape]}>🎵 ABC Songs</Text>
         <View style={styles.headerSpace} />
       </View>
 
       {/* Instructions */}
-      <View style={styles.instructionBox}>
-        <Text style={styles.instructionText}>🎤 Tap a song to sing along! 🎤</Text>
+      <View style={[styles.instructionBox, isLandscape && styles.instructionBoxLandscape]}>
+        <Text style={[styles.instructionText, isLandscape && styles.instructionTextLandscape]}>🎤 Tap a song to sing along! 🎤</Text>
       </View>
 
       {/* Songs List */}
       <ScrollView
-        contentContainerStyle={styles.songsContainer}
+        contentContainerStyle={[
+          styles.songsContainer,
+          { paddingLeft: insets.left + 15, paddingRight: insets.right + 15 },
+          isLandscape && styles.songsContainerLandscape,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {ALPHABET_SONGS.map((song, index) => (
@@ -388,18 +362,20 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
             }}
             onPlay={() => handlePlay(song)}
             onStop={handleStop}
+            isLandscape={isLandscape}
           />
         ))}
 
-        {/* Fun Footer */}
-        <View style={styles.footer}>
-          <View style={styles.footerIcons}>
-            <Image source={BG_IMAGES.musicNote} style={styles.footerIcon} resizeMode="contain" />
-            <Image source={BG_IMAGES.star} style={styles.footerIcon} resizeMode="contain" />
-            <Image source={BG_IMAGES.musicalNotes} style={styles.footerIcon} resizeMode="contain" />
+        {!isLandscape && (
+          <View style={styles.footer}>
+            <View style={styles.footerIcons}>
+              <Image source={BG_IMAGES.musicNote} style={styles.footerIcon} resizeMode="contain" />
+              <Image source={BG_IMAGES.star} style={styles.footerIcon} resizeMode="contain" />
+              <Image source={BG_IMAGES.musicalNotes} style={styles.footerIcon} resizeMode="contain" />
+            </View>
+            <Text style={styles.footerSubtext}>Keep Singing & Learning!</Text>
           </View>
-          <Text style={styles.footerSubtext}>Keep Singing & Learning!</Text>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -415,191 +391,30 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: height * 0.75,
     backgroundColor: '#87CEEB',
-  },
-  bgSun: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    width: 60,
-    height: 60,
-  },
-  bgCloud1: {
-    position: 'absolute',
-    top: 70,
-    left: 10,
-    width: 50,
-    height: 50,
-    opacity: 0.9,
-  },
-  bgCloud2: {
-    position: 'absolute',
-    top: 50,
-    left: width * 0.35,
-    width: 45,
-    height: 45,
-    opacity: 0.8,
-  },
-  bgCloud3: {
-    position: 'absolute',
-    top: 90,
-    right: 80,
-    width: 40,
-    height: 40,
-    opacity: 0.7,
-  },
-  bgRainbow: {
-    position: 'absolute',
-    top: 120,
-    left: width * 0.3,
-    width: 70,
-    height: 70,
-    opacity: 0.6,
-  },
-  bgStar1: {
-    position: 'absolute',
-    top: 100,
-    left: 50,
-    width: 25,
-    height: 25,
-    opacity: 0.7,
-  },
-  bgStar2: {
-    position: 'absolute',
-    top: 140,
-    right: 40,
-    width: 20,
-    height: 20,
-    opacity: 0.6,
-  },
-  bgSparkle1: {
-    position: 'absolute',
-    top: 160,
-    left: 30,
-    width: 22,
-    height: 22,
-    opacity: 0.7,
-  },
-  bgSparkle2: {
-    position: 'absolute',
-    top: 130,
-    right: 120,
-    width: 18,
-    height: 18,
-    opacity: 0.6,
-  },
-  bgBird1: {
-    position: 'absolute',
-    top: 80,
-    left: width * 0.6,
-    width: 30,
-    height: 30,
-  },
-  bgBird2: {
-    position: 'absolute',
-    top: 110,
-    left: width * 0.7,
-    width: 25,
-    height: 25,
-    opacity: 0.8,
-  },
-  bgButterfly: {
-    position: 'absolute',
-    top: 180,
-    right: 30,
-    width: 35,
-    height: 35,
-  },
-  bgMusic1: {
-    position: 'absolute',
-    top: 155,
-    left: width * 0.15,
-    width: 30,
-    height: 30,
-    opacity: 0.7,
-  },
-  bgMusic2: {
-    position: 'absolute',
-    top: 100,
-    right: 100,
-    width: 25,
-    height: 25,
-    opacity: 0.6,
   },
   grassBackground: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: height * 0.25,
     backgroundColor: '#7CCD7C',
     borderTopLeftRadius: 50,
     borderTopRightRadius: 50,
   },
-  bgTree1: {
+  bgElement: {
     position: 'absolute',
-    top: -30,
-    left: 10,
-    width: 50,
-    height: 50,
-  },
-  bgTree2: {
-    position: 'absolute',
-    top: -25,
-    right: 15,
-    width: 45,
-    height: 45,
-  },
-  bgFlower1: {
-    position: 'absolute',
-    top: 20,
-    left: 60,
-    width: 30,
-    height: 30,
-  },
-  bgFlower2: {
-    position: 'absolute',
-    top: 30,
-    left: 120,
-    width: 28,
-    height: 28,
-  },
-  bgFlower3: {
-    position: 'absolute',
-    top: 25,
-    right: 80,
-    width: 30,
-    height: 30,
-  },
-  bgFlower4: {
-    position: 'absolute',
-    top: 35,
-    right: 130,
-    width: 26,
-    height: 26,
-  },
-  bgBee: {
-    position: 'absolute',
-    top: 10,
-    left: width * 0.4,
-    width: 28,
-    height: 28,
-  },
-  bgLadybug: {
-    position: 'absolute',
-    top: 45,
-    right: 60,
-    width: 25,
-    height: 25,
+    opacity: 0.75,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
     marginBottom: 10,
     zIndex: 10,
+  },
+  headerLandscape: {
+    marginBottom: 6,
   },
   backBtn: {
     backgroundColor: 'rgba(255,255,255,0.95)',
@@ -607,10 +422,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
   },
+  backBtnLandscape: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 15,
+  },
   backText: {
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.purple,
+  },
+  backTextLandscape: {
+    fontSize: 14,
   },
   headerTitle: {
     fontSize: 22,
@@ -619,6 +442,9 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
+  },
+  headerTitleLandscape: {
+    fontSize: 18,
   },
   headerSpace: { width: 80 },
   instructionBox: {
@@ -630,15 +456,26 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     zIndex: 10,
   },
+  instructionBoxLandscape: {
+    paddingVertical: 6,
+    marginHorizontal: 40,
+    marginBottom: 6,
+  },
   instructionText: {
     fontSize: 14,
     fontWeight: '700',
     color: '#333',
   },
+  instructionTextLandscape: {
+    fontSize: 12,
+  },
   songsContainer: {
-    paddingHorizontal: 15,
     paddingBottom: 50,
     paddingTop: 30,
+  },
+  songsContainerLandscape: {
+    paddingBottom: 20,
+    paddingTop: 15,
   },
   songCard: {
     backgroundColor: '#fff',
@@ -652,15 +489,28 @@ const styles = StyleSheet.create({
     elevation: 6,
     overflow: 'visible',
   },
+  songCardLandscape: {
+    borderRadius: 16,
+    marginBottom: 15,
+    borderWidth: 3,
+  },
   songTouchable: {
     padding: 20,
     paddingTop: 40,
+  },
+  songTouchableLandscape: {
+    padding: 15,
+    paddingTop: 30,
   },
   balloonContainer: {
     position: 'absolute',
     top: -35,
     left: 20,
     alignItems: 'center',
+  },
+  balloonContainerLandscape: {
+    top: -28,
+    left: 15,
   },
   balloon: {
     width: 55,
@@ -674,8 +524,16 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  balloonLandscape: {
+    width: 42,
+    height: 50,
+    borderRadius: 21,
+  },
   balloonEmoji: {
     fontSize: 28,
+  },
+  balloonEmojiLandscape: {
+    fontSize: 22,
   },
   balloonTail: {
     width: 0,
@@ -698,10 +556,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginLeft: 50,
   },
+  songHeaderLandscape: {
+    marginLeft: 40,
+  },
   songTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: '800',
+  },
+  songTitleLandscape: {
+    fontSize: 16,
   },
   expandBadge: {
     width: 36,
@@ -710,10 +574,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  expandBadgeLandscape: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
   expandText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  expandTextLandscape: {
+    fontSize: 14,
   },
   lyricsContainer: {
     marginTop: 20,
@@ -725,12 +597,21 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#E0E8F0',
   },
+  lyricsBoxLandscape: {
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 2,
+  },
   lyricsText: {
     fontSize: 17,
     lineHeight: 26,
     color: '#333',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  lyricsTextLandscape: {
+    fontSize: 14,
+    lineHeight: 22,
   },
   playButton: {
     marginTop: 15,
@@ -749,15 +630,29 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.3)',
   },
+  playButtonLandscape: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 18,
+    gap: 8,
+  },
   playButtonIcon: {
     width: 24,
     height: 24,
     tintColor: '#fff',
   },
+  playButtonIconLandscape: {
+    width: 20,
+    height: 20,
+  },
   playButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  playButtonTextLandscape: {
+    fontSize: 14,
   },
   notesRow: {
     flexDirection: 'row',
@@ -765,9 +660,17 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingHorizontal: 20,
   },
+  notesRowLandscape: {
+    marginTop: 12,
+    paddingHorizontal: 10,
+  },
   noteImage: {
     width: 32,
     height: 32,
+  },
+  noteImageLandscape: {
+    width: 24,
+    height: 24,
   },
   footer: {
     alignItems: 'center',

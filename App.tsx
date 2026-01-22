@@ -65,7 +65,7 @@ import {
   DressUpScreen,
   FoodSortingScreen,
   BuildGameScreen,
-  PetCareScreen,
+  BodyPartsScreen,
   CleanRoomScreen,
   AnimalHabitatScreen,
   ReactionGameScreen,
@@ -113,7 +113,7 @@ export type RootStackParamList = {
   DressUp: undefined;
   FoodSorting: undefined;
   BuildGame: undefined;
-  PetCare: undefined;
+  BodyParts: undefined;
   CleanRoom: undefined;
   AnimalHabitat: undefined;
   ReactionGame: undefined;
@@ -183,7 +183,7 @@ function App(): React.JSX.Element {
               <Stack.Screen name="DressUp" component={DressUpScreen} />
               <Stack.Screen name="FoodSorting" component={FoodSortingScreen} />
               <Stack.Screen name="BuildGame" component={BuildGameScreen} />
-              <Stack.Screen name="PetCare" component={PetCareScreen} />
+              <Stack.Screen name="BodyParts" component={BodyPartsScreen} />
               <Stack.Screen name="CleanRoom" component={CleanRoomScreen} />
               <Stack.Screen name="AnimalHabitat" component={AnimalHabitatScreen} />
               <Stack.Screen name="ReactionGame" component={ReactionGameScreen} />

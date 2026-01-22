@@ -13,6 +13,7 @@ import { COLORS, RAINBOW_COLORS } from '../constants/colors';
 import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ interface ReactionGameScreenProps {
 
 export const ReactionGameScreen: React.FC<ReactionGameScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { isLandscape } = useResponsiveLayout();
   const [gameState, setGameState] = useState<'ready' | 'waiting' | 'tap' | 'result'>('ready');
   const [reactionTime, setReactionTime] = useState(0);
   const [bestTime, setBestTime] = useState(999999);
@@ -106,11 +108,12 @@ export const ReactionGameScreen: React.FC<ReactionGameScreenProps> = ({ navigati
   const rating = getSpeedRating(reactionTime);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Reaction"
         icon={SCREEN_ICONS.lightning}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
       {/* Stats */}

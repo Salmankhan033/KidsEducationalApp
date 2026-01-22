@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
 import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +43,8 @@ export const CountingGame: React.FC<CountingGameProps> = ({ navigation }) => {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
+  
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
   
   const celebrationAnim = useRef(new Animated.Value(0)).current;
   const cardAnims = useRef([new Animated.Value(0), new Animated.Value(0)]).current;
@@ -183,42 +187,49 @@ export const CountingGame: React.FC<CountingGameProps> = ({ navigation }) => {
     return emojis;
   };
 
-  const CARD_WIDTH = (width - 50) / 2;
+  const CARD_WIDTH = isLandscape ? (screenWidth - 100) / 2 : (width - 50) / 2;
+  const cardHeight = isLandscape ? screenHeight * 0.45 : undefined;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Counting"
         icon={SCREEN_ICONS.puzzle}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
-      {/* Score & Progress */}
-      <View style={styles.topRow}>
-        <View style={styles.scoreBox}>
-          <Text style={styles.scoreLabel}>⭐ Score</Text>
-          <Text style={styles.scoreValue}>{score}</Text>
-        </View>
-        <View style={styles.progressBox}>
-          <Text style={styles.progressText}>{currentPuzzle + 1}/{COUNTING_PUZZLES.length}</Text>
-        </View>
-      </View>
-
-      {/* Question */}
-      <Animated.View 
-        style={[
-          styles.questionBox,
-          { 
-            backgroundColor: puzzle.color,
-            transform: [{ scale: questionAnim }],
-          }
-        ]}
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, isLandscape && { paddingVertical: 5 }]}
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.questionText}>
-          Which One Has {questionType === 'more' ? 'MORE' : 'LESS'}?
-        </Text>
-        <Text style={styles.handPointer}>👆</Text>
-      </Animated.View>
+        {/* Score & Progress */}
+        <View style={[styles.topRow, isLandscape && { marginBottom: 5 }]}>
+          <View style={[styles.scoreBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 6 }]}>
+            <Text style={[styles.scoreLabel, isLandscape && { fontSize: 11 }]}>⭐ Score</Text>
+            <Text style={[styles.scoreValue, isLandscape && { fontSize: 18 }]}>{score}</Text>
+          </View>
+          <View style={[styles.progressBox, isLandscape && { paddingHorizontal: 12, paddingVertical: 6 }]}>
+            <Text style={[styles.progressText, isLandscape && { fontSize: 12 }]}>{currentPuzzle + 1}/{COUNTING_PUZZLES.length}</Text>
+          </View>
+        </View>
+
+        {/* Question */}
+        <Animated.View 
+          style={[
+            styles.questionBox,
+            { 
+              backgroundColor: puzzle.color,
+              transform: [{ scale: questionAnim }],
+            },
+            isLandscape && { paddingVertical: 8, marginBottom: 8 }
+          ]}
+        >
+          <Text style={[styles.questionText, isLandscape && { fontSize: 16 }]}>
+            Which One Has {questionType === 'more' ? 'MORE' : 'LESS'}?
+          </Text>
+          <Text style={[styles.handPointer, isLandscape && { fontSize: 18 }]}>👆</Text>
+        </Animated.View>
 
       {/* Two Cards Side by Side */}
       <Animated.View 
@@ -246,13 +257,13 @@ export const CountingGame: React.FC<CountingGameProps> = ({ navigation }) => {
             disabled={selectedSide !== null && isCorrect}
             activeOpacity={0.7}
           >
-            <View style={styles.emojiGrid}>
-              {renderEmojis(leftCount)}
-            </View>
-            
-            {/* Count badge */}
+            {/* Count badge - positioned at top */}
             <View style={[styles.countBadge, { backgroundColor: puzzle.color }]}>
               <Text style={styles.countBadgeText}>{leftCount}</Text>
+            </View>
+            
+            <View style={styles.emojiGrid}>
+              {renderEmojis(leftCount)}
             </View>
             
             {/* Result badge */}
@@ -288,13 +299,13 @@ export const CountingGame: React.FC<CountingGameProps> = ({ navigation }) => {
             disabled={selectedSide !== null && isCorrect}
             activeOpacity={0.7}
           >
-            <View style={styles.emojiGrid}>
-              {renderEmojis(rightCount)}
-            </View>
-            
-            {/* Count badge */}
+            {/* Count badge - positioned at top */}
             <View style={[styles.countBadge, { backgroundColor: puzzle.color }]}>
               <Text style={styles.countBadgeText}>{rightCount}</Text>
+            </View>
+            
+            <View style={styles.emojiGrid}>
+              {renderEmojis(rightCount)}
             </View>
             
             {/* Result badge */}
@@ -312,12 +323,26 @@ export const CountingGame: React.FC<CountingGameProps> = ({ navigation }) => {
         </Animated.View>
       </Animated.View>
 
-      {/* Hint */}
-      <View style={styles.hintBox}>
-        <Text style={styles.hintText}>
-          💡 Count the {puzzle.name} and tap the card with {questionType === 'more' ? 'MORE' : 'LESS'}!
-        </Text>
-      </View>
+        {/* Hint */}
+        <View style={[styles.hintBox, isLandscape && { paddingVertical: 8, marginTop: 5 }]}>
+          <Text style={[styles.hintText, isLandscape && { fontSize: 12 }]}>
+            💡 Count the {puzzle.name} and tap the card with {questionType === 'more' ? 'MORE' : 'LESS'}!
+          </Text>
+        </View>
+
+        {/* Bottom Buttons */}
+        <View style={[styles.buttonRow, isLandscape && { paddingVertical: 8, gap: 15 }]}>
+          <TouchableOpacity onPress={resetGame} style={[styles.resetButton, isLandscape && { paddingHorizontal: 16, paddingVertical: 8 }]}>
+            <Text style={[styles.buttonEmoji, isLandscape && { fontSize: 16 }]}>🔄</Text>
+            <Text style={[styles.buttonText, isLandscape && { fontSize: 12 }]}>Reset</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={nextPuzzle} style={[styles.nextButton, isLandscape && { paddingHorizontal: 16, paddingVertical: 8 }]}>
+            <Text style={[styles.buttonEmoji, isLandscape && { fontSize: 16 }]}>➡️</Text>
+            <Text style={[styles.buttonText, isLandscape && { fontSize: 12 }]}>Next</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
       {/* Celebration Overlay */}
       {showCelebration && (
@@ -327,10 +352,10 @@ export const CountingGame: React.FC<CountingGameProps> = ({ navigation }) => {
             { transform: [{ scale: celebrationAnim }] }
           ]}
         >
-          <View style={styles.celebrationCard}>
-            <Text style={styles.celebrationEmoji}>🎉</Text>
-            <Text style={styles.celebrationText}>Great Counting!</Text>
-            <Text style={styles.celebrationSubtext}>
+          <View style={[styles.celebrationCard, isLandscape && { padding: 20 }]}>
+            <Text style={[styles.celebrationEmoji, isLandscape && { fontSize: 50 }]}>🎉</Text>
+            <Text style={[styles.celebrationText, isLandscape && { fontSize: 22 }]}>Great Counting!</Text>
+            <Text style={[styles.celebrationSubtext, isLandscape && { fontSize: 14 }]}>
               {questionType === 'more' 
                 ? `${Math.max(leftCount, rightCount)} is more than ${Math.min(leftCount, rightCount)}!`
                 : `${Math.min(leftCount, rightCount)} is less than ${Math.max(leftCount, rightCount)}!`
@@ -339,19 +364,6 @@ export const CountingGame: React.FC<CountingGameProps> = ({ navigation }) => {
           </View>
         </Animated.View>
       )}
-
-      {/* Bottom Buttons */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity onPress={resetGame} style={styles.resetButton}>
-          <Text style={styles.buttonEmoji}>🔄</Text>
-          <Text style={styles.buttonText}>Reset</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity onPress={nextPuzzle} style={styles.nextButton}>
-          <Text style={styles.buttonEmoji}>➡️</Text>
-          <Text style={styles.buttonText}>Next</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -360,6 +372,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF9E6',
+  },
+  scrollContent: {
+    paddingBottom: 20,
+    alignItems: 'center',
   },
   topRow: {
     flexDirection: 'row',
@@ -468,11 +484,11 @@ const styles = StyleSheet.create({
     fontSize: 45,
   },
   countBadge: {
-    position: 'absolute',
-    bottom: 15,
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 20,
+    marginBottom: 12,
+    alignSelf: 'center',
   },
   countBadgeText: {
     fontSize: 22,
@@ -591,4 +607,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
 

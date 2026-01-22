@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
@@ -13,6 +14,7 @@ import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
 import Svg, { Line } from 'react-native-svg';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width, height } = Dimensions.get('window');
 
@@ -61,11 +63,24 @@ export const OppositesGame: React.FC<OppositesGameProps> = ({ navigation }) => {
   const [score, setScore] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   
+  const { isLandscape, width: screenWidth, height: screenHeight } = useResponsiveLayout();
+  
   const celebrationAnim = useRef(new Animated.Value(0)).current;
   const itemAnims = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
   
-  const leftPositions = useRef<{ [key: number]: { x: number; y: number } }>({});
-  const rightPositions = useRef<{ [key: number]: { x: number; y: number } }>({});
+  const [gameAreaLayout, setGameAreaLayout] = useState({ width: 0, height: 0 });
+  
+  // Calculate positions based on index and layout - more reliable than onLayout
+  const getItemY = (index: number, totalItems: number, containerHeight: number) => {
+    if (containerHeight === 0) return 0;
+    const itemHeight = containerHeight / totalItems;
+    return (index + 0.5) * itemHeight;
+  };
+  
+  // Find where an originalIdx item is visually positioned in shuffledRight
+  const getRightVisualIndex = (originalIdx: number) => {
+    return shuffledRight.findIndex(item => item.originalIdx === originalIdx);
+  };
 
   const level = OPPOSITE_LEVELS[currentLevel];
 
@@ -84,8 +99,6 @@ export const OppositesGame: React.FC<OppositesGameProps> = ({ navigation }) => {
     setShuffledRight(shuffleArray(OPPOSITE_LEVELS[currentLevel].pairs.map(p => p.right)));
     setShowCelebration(false);
     celebrationAnim.setValue(0);
-    leftPositions.current = {};
-    rightPositions.current = {};
     
     itemAnims.forEach((anim, index) => {
       anim.setValue(0);
@@ -163,13 +176,139 @@ export const OppositesGame: React.FC<OppositesGameProps> = ({ navigation }) => {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Opposites"
         icon={SCREEN_ICONS.puzzle}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
+      {isLandscape ? (
+        // LANDSCAPE LAYOUT - Similar to Match Lines game
+        <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: 15 }}>
+          {/* Left Panel - Score, Level, Buttons */}
+          <View style={{ width: 130, justifyContent: 'center', alignItems: 'center', paddingRight: 10 }}>
+            <View style={[styles.scoreBox, { marginBottom: 10, paddingHorizontal: 12, paddingVertical: 6 }]}>
+              <Text style={[styles.scoreLabel, { fontSize: 12 }]}>⭐ Score</Text>
+              <Text style={[styles.scoreValue, { fontSize: 16 }]}>{score}</Text>
+            </View>
+            <View style={[styles.levelBox, { marginBottom: 15, paddingHorizontal: 12, paddingVertical: 6 }]}>
+              <Text style={[styles.levelText, { fontSize: 11 }]}>Level {currentLevel + 1}/{OPPOSITE_LEVELS.length}</Text>
+            </View>
+            <TouchableOpacity onPress={resetGame} style={[styles.resetButton, { paddingHorizontal: 14, paddingVertical: 8, marginBottom: 8 }]}>
+              <Text style={[styles.buttonEmoji, { fontSize: 14 }]}>🔄</Text>
+              <Text style={[styles.buttonText, { fontSize: 11 }]}>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => setCurrentLevel((currentLevel + 1) % OPPOSITE_LEVELS.length)} 
+              style={[styles.nextButton, { paddingHorizontal: 14, paddingVertical: 8 }]}
+            >
+              <Text style={[styles.buttonEmoji, { fontSize: 14 }]}>➡️</Text>
+              <Text style={[styles.buttonText, { fontSize: 11 }]}>Next</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Game Area */}
+          <View 
+            style={[styles.gameArea, { flex: 1, height: 'auto', paddingVertical: 10, paddingHorizontal: 15 }]}
+            onLayout={(e) => {
+              const { width: w, height: h } = e.nativeEvent.layout;
+              setGameAreaLayout({ width: w, height: h });
+            }}
+          >
+            {/* SVG Lines */}
+            <Svg style={StyleSheet.absoluteFill}>
+              {connections.map((conn) => {
+                if (gameAreaLayout.height === 0) return null;
+                
+                const totalItems = level.pairs.length;
+                const leftY = getItemY(conn.leftIdx, totalItems, gameAreaLayout.height);
+                const rightVisualIdx = getRightVisualIndex(conn.rightIdx);
+                const rightY = getItemY(rightVisualIdx, totalItems, gameAreaLayout.height);
+                
+                // Left column is 80px, padding is 15px on each side
+                const areaWidth = gameAreaLayout.width > 0 ? gameAreaLayout.width : 400;
+                const lineStartX = 15 + 80; // Right edge of left column
+                const lineEndX = areaWidth - 15 - 80; // Left edge of right column
+                
+                return (
+                  <Line
+                    key={`line-${conn.leftIdx}-${conn.rightIdx}`}
+                    x1={lineStartX}
+                    y1={leftY}
+                    x2={lineEndX}
+                    y2={rightY}
+                    stroke={conn.color}
+                    strokeWidth={5}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </Svg>
+
+            {/* Left Column */}
+            <View key={`left-col-${currentLevel}`} style={{ justifyContent: 'space-around', alignItems: 'center', width: 80 }}>
+              {level.pairs.map((pair, index) => {
+                const isConnected = connections.find(c => c.leftIdx === index);
+                const isSelected = selectedLeft === index;
+                
+                return (
+                  <Animated.View
+                    key={`land-left-${currentLevel}-${index}`}
+                    style={[{ transform: [{ scale: itemAnims[index] }] }]}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleLeftPress(index)}
+                      style={[
+                        styles.itemCard,
+                        { width: 75, paddingVertical: 6, borderWidth: 3, borderRadius: 12 },
+                        { borderColor: pair.color },
+                        isSelected && styles.selectedCard,
+                        isConnected && styles.connectedCard,
+                      ]}
+                      disabled={!!isConnected}
+                    >
+                      <Text style={{ fontSize: 24, marginBottom: 2 }}>{pair.left.emoji}</Text>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#333' }}>{pair.left.name}</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
+            </View>
+
+            {/* Right Column */}
+            <View key={`right-col-${currentLevel}`} style={{ justifyContent: 'space-around', alignItems: 'center', width: 80 }}>
+              {shuffledRight.map((item, shuffledIdx) => {
+                const isConnected = connections.find(c => c.rightIdx === item.originalIdx);
+                
+                return (
+                  <Animated.View
+                    key={`land-right-${currentLevel}-${shuffledIdx}`}
+                    style={[{ transform: [{ scale: itemAnims[shuffledIdx] }] }]}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleRightPress(shuffledIdx)}
+                      style={[
+                        styles.itemCard,
+                        { width: 75, paddingVertical: 6, borderWidth: 3, borderRadius: 12 },
+                        { borderColor: level.pairs[item.originalIdx].color },
+                        isConnected && styles.connectedCard,
+                      ]}
+                      disabled={!!isConnected}
+                    >
+                      <Text style={{ fontSize: 24, marginBottom: 2 }}>{item.emoji}</Text>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#333' }}>{item.name}</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      ) : (
+        // PORTRAIT LAYOUT
+        <>
       {/* Score & Progress */}
       <View style={styles.topRow}>
         <View style={styles.scoreBox}>
@@ -183,32 +322,42 @@ export const OppositesGame: React.FC<OppositesGameProps> = ({ navigation }) => {
 
       {/* Instructions */}
       <View style={styles.instructionBox}>
-        <Text style={styles.instructionText}>
-          🔄 Match the opposites!
-        </Text>
+            <Text style={styles.instructionText}>🔄 Match the opposites!</Text>
       </View>
 
       {/* Game Area */}
-      <View style={styles.gameArea}>
+      <View 
+        style={styles.gameArea}
+        onLayout={(e) => {
+          const { width: w, height: h } = e.nativeEvent.layout;
+          setGameAreaLayout({ width: w, height: h });
+        }}
+      >
         {/* SVG Lines */}
         <Svg style={StyleSheet.absoluteFill}>
-          {connections.map((conn, index) => {
-            const leftPos = leftPositions.current[conn.leftIdx];
-            const rightPos = rightPositions.current[conn.rightIdx];
-            if (!leftPos || !rightPos) return null;
+          {connections.map((conn) => {
+            if (gameAreaLayout.height === 0) return null;
             
-            // Calculate proper line positions
-            const columnWidth = (width - 80) / 2;
-            const lineStartX = columnWidth; // Right edge of left column
-            const lineEndX = width - 60 - columnWidth; // Left edge of right column
+            const totalItems = level.pairs.length;
+            const leftY = getItemY(conn.leftIdx, totalItems, gameAreaLayout.height);
+            const rightVisualIdx = getRightVisualIndex(conn.rightIdx);
+            const rightY = getItemY(rightVisualIdx, totalItems, gameAreaLayout.height);
+            
+            // Calculate based on actual game area width
+            // Columns are centered with space-between, each column is 100px wide from styles
+            const padding = 20; // paddingHorizontal from styles.gameArea
+            const columnWidth = 100; // from styles.column width
+            const areaWidth = gameAreaLayout.width > 0 ? gameAreaLayout.width : 300;
+            const lineStartX = padding + columnWidth; // Right edge of left column
+            const lineEndX = areaWidth - padding - columnWidth; // Left edge of right column
             
             return (
               <Line
-                key={index}
+                key={`line-${conn.leftIdx}-${conn.rightIdx}`}
                 x1={lineStartX}
-                y1={leftPos.y}
+                y1={leftY}
                 x2={lineEndX}
-                y2={rightPos.y}
+                y2={rightY}
                 stroke={conn.color}
                 strokeWidth={8}
                 strokeLinecap="round"
@@ -218,19 +367,15 @@ export const OppositesGame: React.FC<OppositesGameProps> = ({ navigation }) => {
         </Svg>
 
         {/* Left Column */}
-        <View style={styles.column}>
+        <View key={`left-portrait-${currentLevel}`} style={styles.column}>
           {level.pairs.map((pair, index) => {
             const isConnected = connections.find(c => c.leftIdx === index);
             const isSelected = selectedLeft === index;
             
             return (
               <Animated.View
-                key={index}
+                key={`left-${currentLevel}-${index}`}
                 style={[{ transform: [{ scale: itemAnims[index] }] }]}
-                onLayout={(e) => {
-                  const { y, height: h } = e.nativeEvent.layout;
-                  leftPositions.current[index] = { x: 0, y: y + h / 2 };
-                }}
               >
                 <TouchableOpacity
                   onPress={() => handleLeftPress(index)}
@@ -251,18 +396,14 @@ export const OppositesGame: React.FC<OppositesGameProps> = ({ navigation }) => {
         </View>
 
         {/* Right Column */}
-        <View style={styles.column}>
+        <View key={`right-portrait-${currentLevel}`} style={styles.column}>
           {shuffledRight.map((item, shuffledIdx) => {
             const isConnected = connections.find(c => c.rightIdx === item.originalIdx);
             
             return (
               <Animated.View
-                key={shuffledIdx}
+                key={`right-${currentLevel}-${shuffledIdx}`}
                 style={[{ transform: [{ scale: itemAnims[shuffledIdx] }] }]}
-                onLayout={(e) => {
-                  const { x, y, width: w, height: h } = e.nativeEvent.layout;
-                  rightPositions.current[item.originalIdx] = { x: 0, y: y + h / 2 };
-                }}
               >
                 <TouchableOpacity
                   onPress={() => handleRightPress(shuffledIdx)}
@@ -282,22 +423,6 @@ export const OppositesGame: React.FC<OppositesGameProps> = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Celebration Overlay */}
-      {showCelebration && (
-        <Animated.View 
-          style={[
-            styles.celebrationOverlay,
-            { transform: [{ scale: celebrationAnim }] }
-          ]}
-        >
-          <View style={styles.celebrationCard}>
-            <Text style={styles.celebrationEmoji}>🎉</Text>
-            <Text style={styles.celebrationText}>Awesome!</Text>
-            <Text style={styles.celebrationSubtext}>You know your opposites!</Text>
-          </View>
-        </Animated.View>
-      )}
-
       {/* Bottom Buttons */}
       <View style={styles.buttonRow}>
         <TouchableOpacity onPress={resetGame} style={styles.resetButton}>
@@ -313,6 +438,24 @@ export const OppositesGame: React.FC<OppositesGameProps> = ({ navigation }) => {
           <Text style={styles.buttonText}>Next</Text>
         </TouchableOpacity>
       </View>
+        </>
+      )}
+
+      {/* Celebration Overlay */}
+      {showCelebration && (
+        <Animated.View 
+          style={[
+            styles.celebrationOverlay,
+            { transform: [{ scale: celebrationAnim }] }
+          ]}
+        >
+          <View style={[styles.celebrationCard, isLandscape && { paddingHorizontal: 25, paddingVertical: 12 }]}>
+            <Text style={[styles.celebrationEmoji, isLandscape && { fontSize: 30 }]}>🎉</Text>
+            <Text style={[styles.celebrationText, isLandscape && { fontSize: 18 }]}>Awesome!</Text>
+            <Text style={[styles.celebrationSubtext, isLandscape && { fontSize: 11 }]}>You know your opposites!</Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -379,20 +522,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     marginHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    paddingVertical: 10,
   },
   column: {
     justifyContent: 'space-around',
     alignItems: 'center',
-    width: (width - 80) / 2,
+    width: 100,
   },
   itemCard: {
-    width: (width - 100) / 2,
-    paddingVertical: 15,
-    borderRadius: 20,
+    width: 95,
+    paddingVertical: 12,
+    borderRadius: 15,
     backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 5,
+    borderWidth: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -400,8 +546,11 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   selectedCard: {
-    transform: [{ scale: 1.05 }],
-    shadowOpacity: 0.5,
+    transform: [{ scale: 1.08 }],
+    borderColor: '#FF0000',
+    borderWidth: 5,
+    shadowOpacity: 0.6,
+    shadowColor: '#FF0000',
   },
   connectedCard: {
     opacity: 0.5,
@@ -496,4 +645,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
 

@@ -12,6 +12,7 @@ import { COLORS } from '../constants/colors';
 import { speakWord, speakCelebration, stopSpeaking } from '../utils/speech';
 import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
+import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
 const { width } = Dimensions.get('window');
 
@@ -89,6 +90,7 @@ interface SizeCompareGameProps {
 
 export const SizeCompareGame: React.FC<SizeCompareGameProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { isLandscape } = useResponsiveLayout();
   const [currentPuzzle, setCurrentPuzzle] = useState(0);
   const [shuffledSizes, setShuffledSizes] = useState<typeof SIZE_OPTIONS>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -204,14 +206,158 @@ export const SizeCompareGame: React.FC<SizeCompareGameProps> = ({ navigation }) 
     initializePuzzle();
   };
 
-  const CARD_SIZE = (width - 60) / 2;
+  const CARD_SIZE = isLandscape ? 100 : (width - 60) / 2;
 
+  // Landscape layout
+  if (isLandscape) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
+        <ScreenHeader
+          title="Size Compare"
+          icon={SCREEN_ICONS.puzzle}
+          onBack={() => { stopSpeaking(); navigation.goBack(); }}
+          compact={true}
+        />
+
+        <View style={{ flex: 1, flexDirection: 'row', padding: 10, gap: 10 }}>
+          {/* Left Panel - Question */}
+          <Animated.View 
+            style={{ 
+              width: 220, 
+              backgroundColor: puzzle.color, 
+              borderRadius: 20, 
+              padding: 15,
+              justifyContent: 'center',
+              alignItems: 'center',
+              transform: [{ scale: questionAnim }],
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 15 }}>
+              <View style={{ backgroundColor: '#FFD700', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700' }}>⭐ {score}</Text>
+              </View>
+              <View style={{ backgroundColor: '#A855F7', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 }}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{currentPuzzle + 1}/{SIZE_PUZZLES.length}</Text>
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 40, marginBottom: 10 }}>❓</Text>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', textAlign: 'center' }}>{puzzle.question}</Text>
+            
+            <Text style={{ fontSize: 60, marginTop: 15 }}>{puzzle.emoji}</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginTop: 5 }}>{puzzle.name}</Text>
+          </Animated.View>
+
+          {/* Right Panel - Options */}
+          <Animated.View 
+            style={{ 
+              flex: 1, 
+              backgroundColor: '#fff', 
+              borderRadius: 20, 
+              padding: 15,
+              justifyContent: 'center',
+              transform: [{ translateX: shakeAnim }],
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#666', textAlign: 'center', marginBottom: 15 }}>
+              Tap the {puzzle.type} one!
+            </Text>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 15 }}>
+              {shuffledSizes.map((sizeOption, index) => {
+                const isSelected = selectedIndex === index;
+                const correctLabel = puzzle.type === 'biggest' ? 'big' : 'tiny';
+                
+                let borderColor = '#E0E0E0';
+                let backgroundColor = '#F5F5F5';
+                
+                if (selectedIndex !== null && isSelected) {
+                  if (isCorrect) {
+                    borderColor = '#4CAF50';
+                    backgroundColor = '#E8F5E9';
+                  } else {
+                    borderColor = '#F44336';
+                    backgroundColor = '#FFEBEE';
+                  }
+                }
+                
+                return (
+                  <Animated.View
+                    key={index}
+                    style={{ transform: [{ scale: cardAnims[index] }] }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleCardPress(index)}
+                      style={{ 
+                        width: CARD_SIZE, 
+                        height: CARD_SIZE, 
+                        backgroundColor, 
+                        borderRadius: 15, 
+                        borderWidth: 3, 
+                        borderColor,
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                      }}
+                      disabled={selectedIndex !== null && isCorrect}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 40 * sizeOption.scale }}>
+                        {puzzle.emoji}
+                      </Text>
+                      
+                      {selectedIndex !== null && isSelected && (
+                        <View style={{ position: 'absolute', top: -8, right: -8, backgroundColor: isCorrect ? '#4CAF50' : '#F44336', width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
+                          <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>{isCorrect ? '✓' : '✗'}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
+            </View>
+
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 15, marginTop: 20 }}>
+              <TouchableOpacity onPress={resetGame} style={{ backgroundColor: '#FF6B6B', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={{ fontSize: 16 }}>🔄</Text>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Reset</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity onPress={nextPuzzle} style={{ backgroundColor: '#4CAF50', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Text style={{ fontSize: 16 }}>➡️</Text>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Next</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Celebration Overlay */}
+        {showCelebration && (
+          <Animated.View 
+            style={[
+              { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+              { transform: [{ scale: celebrationAnim }] }
+            ]}
+          >
+            <View style={{ backgroundColor: '#fff', padding: 30, borderRadius: 25, alignItems: 'center' }}>
+              <Text style={{ fontSize: 50 }}>🎉</Text>
+              <Text style={{ fontSize: 24, fontWeight: '800', color: '#27AE60', marginTop: 10 }}>Correct!</Text>
+              <Text style={{ fontSize: 14, color: '#666', marginTop: 5 }}>You found the {puzzle.type} {puzzle.name}!</Text>
+            </View>
+          </Animated.View>
+        )}
+      </View>
+    );
+  }
+
+  // Portrait layout
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       <ScreenHeader
         title="Size Compare"
         icon={SCREEN_ICONS.puzzle}
         onBack={() => { stopSpeaking(); navigation.goBack(); }}
+        compact={isLandscape}
       />
 
       {/* Score & Progress */}
@@ -541,4 +687,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
 
