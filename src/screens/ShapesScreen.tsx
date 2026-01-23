@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  ImageBackground,
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,8 +16,10 @@ import { COLORS, RAINBOW_COLORS } from '../constants/colors';
 import { SHAPES } from '../constants/gameData';
 import { speakShape, speakWord, stopSpeaking, speakCelebration } from '../utils/speech';
 import { SCREEN_ICONS } from '../assets/images';
-import { MuteButton } from '../components';
 import { useResponsiveLayout } from '../utils/useResponsiveLayout';
+
+// Background Image
+const SHAPES_BG_IMAGE = require('../images/bgImage/ShapsImageBG.png');
 
 const { width, height } = Dimensions.get('window');
 
@@ -38,6 +41,10 @@ const BG_IMAGES = {
 
 // Card colors for shapes
 const CARD_BORDER_COLORS = ['#FF6B6B', '#4D96FF', '#6BCB77', '#FFA94D', '#FFD93D', '#FF6B9D', '#4ECDC4', '#9B59B6'];
+const CARD_BG_COLORS = [
+  '#FFE5E5', '#E5F6FF', '#E5FFE8', '#FFF5E5', 
+  '#FFFDE5', '#FFE5F0', '#E5FFFF', '#F0E5FF',
+];
 
 // Real life examples for each shape
 const REAL_LIFE_EXAMPLES: Record<string, { emoji: string; text: string }[]> = {
@@ -627,44 +634,63 @@ interface GridCardProps {
   isLandscape: boolean;
 }
 
-const GridCard: React.FC<GridCardProps> = ({ shapeData, index, onPress, cardWidth, isLandscape }) => {
+const GridCard: React.FC<GridCardProps> = ({ shapeData, index, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
+  const bgColor = CARD_BG_COLORS[index % CARD_BG_COLORS.length];
 
   useEffect(() => {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      delay: index * 15,
-      tension: 60,
-      friction: 8,
+      delay: index * 30,
+      tension: 80,
+      friction: 6,
     }).start();
-  }, [scaleAnim, index]);
 
-  const balloonSize = isLandscape ? 40 : 55;
+    // Floating animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: -3, duration: 1200, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [scaleAnim, bounceAnim, index]);
 
   return (
-    <Animated.View style={[styles.gridCard, { width: cardWidth, transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[
+      styles.gridCard, 
+      { transform: [{ scale: scaleAnim }, { translateY: bounceAnim }] }
+    ]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[
-          styles.gridCardInner, 
-          { borderColor: borderColor },
-          isLandscape && { borderRadius: 14, borderWidth: 3, padding: 10 },
-        ]}
-        activeOpacity={0.8}
+        style={[styles.gridCardInner, { borderColor: borderColor, backgroundColor: bgColor }]}
+        activeOpacity={0.9}
       >
-        <View style={[
-          styles.gridBalloon, 
-          { backgroundColor: shapeData.color, width: balloonSize, height: balloonSize, borderRadius: balloonSize / 2 }
-        ]}>
-          <Text style={[styles.gridBalloonEmoji, isLandscape && { fontSize: 22 }]}>{shapeData.emoji}</Text>
+        {/* Sparkle decorations */}
+        <Text style={styles.sparkleLeft}>✨</Text>
+        <Text style={styles.sparkleRight}>⭐</Text>
+        
+        {/* Big colorful shape circle */}
+        <View style={[styles.gridBalloon, { backgroundColor: shapeData.color }]}>
+          <View style={styles.balloonShine} />
+          <Text style={styles.gridBalloonEmoji}>{shapeData.emoji}</Text>
         </View>
 
-        <Text style={[styles.gridName, isLandscape && { fontSize: 13, marginTop: 6 }]}>{shapeData.name}</Text>
-        <Text style={[styles.gridSides, isLandscape && { fontSize: 10, marginTop: 2 }]}>
-          {shapeData.sides > 0 ? `${shapeData.sides} sides` : 'Round'}
-        </Text>
+        <Text style={[styles.gridName, { color: shapeData.color }]}>{shapeData.name}</Text>
+        
+        {/* Sides info in bubble */}
+        <View style={[styles.sidesCircle, { borderColor: `${shapeData.color}40` }]}>
+          <Text style={styles.gridSides}>
+            {shapeData.sides > 0 ? `${shapeData.sides} sides` : 'Round'}
+          </Text>
+        </View>
+
+        {/* Fun tap button */}
+        <View style={[styles.tapButton, { backgroundColor: shapeData.color }]}>
+          <Text style={styles.tapButtonText}>🎯 TAP ME!</Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -1177,91 +1203,50 @@ export const ShapesScreen: React.FC<ShapesScreenProps> = ({ navigation }) => {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <ImageBackground 
+      source={SHAPES_BG_IMAGE} 
+      style={styles.container}
+      resizeMode="cover"
+    >
       <StatusBar barStyle="dark-content" />
-
-      {/* Beautiful Kid-Friendly Background */}
-      <View style={styles.skyBackground}>
-        <Image source={BG_IMAGES.sun} style={styles.bgSun} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud1} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud2} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud3} />
-        <Image source={BG_IMAGES.rainbow} style={styles.bgRainbow} />
-        <Image source={BG_IMAGES.star} style={styles.bgStar1} />
-        <Image source={BG_IMAGES.star} style={styles.bgStar2} />
-        <Image source={BG_IMAGES.sparkle} style={styles.bgSparkle1} />
-        <Image source={BG_IMAGES.sparkle} style={styles.bgSparkle2} />
-        <Image source={BG_IMAGES.bird} style={styles.bgBird1} />
-        <Image source={BG_IMAGES.bird} style={styles.bgBird2} />
-        <Image source={BG_IMAGES.butterfly} style={styles.bgButterfly} />
-      </View>
-
-      {/* Grass with flowers */}
-      <View style={styles.grassBackground}>
-        <Image source={BG_IMAGES.tree} style={styles.bgTree1} />
-        <Image source={BG_IMAGES.tree} style={styles.bgTree2} />
-        <Image source={BG_IMAGES.flower} style={styles.bgFlower1} />
-        <Image source={BG_IMAGES.tulip} style={styles.bgFlower2} />
-        <Image source={BG_IMAGES.flower} style={styles.bgFlower3} />
-        <Image source={BG_IMAGES.tulip} style={styles.bgFlower4} />
-        <Image source={BG_IMAGES.bee} style={styles.bgBee} />
-        <Image source={BG_IMAGES.ladybug} style={styles.bgLadybug} />
-      </View>
-
-      {/* Mute Button - Top Right */}
-      <MuteButton 
-        style={{ position: 'absolute', right: insets.right + 15, top: insets.top + 10, zIndex: 100 }} 
-        size={isLandscape ? 'small' : 'medium'} 
-      />
 
       {viewMode === 'grid' ? (
         <>
-          <View style={[
-            styles.header, 
-            { marginTop: insets.top + (isLandscape ? 5 : 10), paddingHorizontal: insets.left + 15 },
-            isLandscape && { marginBottom: 5 },
-          ]}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, isLandscape && { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 }]}>
-              <Text style={[styles.backText, isLandscape && { fontSize: 13 }]}>← Back</Text>
+          <View style={[styles.header, { marginTop: insets.top + 10 }]}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <Text style={styles.backText}>← Back</Text>
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, isLandscape && { fontSize: 18 }]}>🔷 Shapes</Text>
+            <Text style={styles.headerTitle}>🔷 Shapes</Text>
             <View style={styles.headerSpace} />
           </View>
 
           {/* Mode Toggle */}
-          <View style={[
-            styles.modeToggle,
-            { marginHorizontal: insets.left + 20 },
-            isLandscape && { marginBottom: 5, borderRadius: 18, padding: 3 },
-          ]}>
+          <View style={styles.modeToggle}>
             <TouchableOpacity
-              style={[styles.modeButton, viewMode === 'grid' && styles.modeButtonActive, isLandscape && { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 15 }]}
+              style={[styles.modeButton, viewMode === 'grid' && styles.modeButtonActive]}
               onPress={() => setViewMode('grid')}
             >
-              <Image source={SCREEN_ICONS.book} style={[styles.modeIcon, viewMode === 'grid' && styles.modeIconActive, isLandscape && { width: 18, height: 18 }]} resizeMode="contain" />
-              <Text style={[styles.modeText, viewMode === 'grid' && styles.modeTextActive, isLandscape && { fontSize: 12 }]}>Learn</Text>
+              <Image source={SCREEN_ICONS.book} style={[styles.modeIcon, viewMode === 'grid' && styles.modeIconActive]} resizeMode="contain" />
+              <Text style={[styles.modeText, viewMode === 'grid' && styles.modeTextActive]}>📚 Learn</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modeButton, viewMode === 'match' && styles.modeButtonActive, isLandscape && { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 15 }]}
+              style={[styles.modeButton, viewMode === 'match' && styles.modeButtonActive]}
               onPress={() => setViewMode('match')}
             >
-              <Image source={SCREEN_ICONS.gamepad} style={[styles.modeIcon, viewMode === 'match' && styles.modeIconActive, isLandscape && { width: 18, height: 18 }]} resizeMode="contain" />
-              <Text style={[styles.modeText, viewMode === 'match' && styles.modeTextActive, isLandscape && { fontSize: 12 }]}>Match</Text>
+              <Image source={SCREEN_ICONS.gamepad} style={[styles.modeIcon, viewMode === 'match' && styles.modeIconActive]} resizeMode="contain" />
+              <Text style={[styles.modeText, viewMode === 'match' && styles.modeTextActive]}>🎮 Match</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.instructionBox, isLandscape && { paddingVertical: 6, marginHorizontal: 10, marginBottom: 5, borderRadius: 15 }]}>
-            <Text style={[styles.instructionText, isLandscape && { fontSize: 11 }]}>✨ Tap to learn shapes! ✨</Text>
+          <View style={styles.instructionBox}>
+            <Text style={styles.instructionText}>✨ Tap to learn shapes! ✨</Text>
           </View>
 
           <ScrollView 
-            contentContainerStyle={[
-              styles.gridContainer,
-              { paddingHorizontal: padding + insets.left, paddingRight: padding + insets.right }
-            ]} 
+            contentContainerStyle={styles.gridContainer}
             showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.gridWrapper, { gap: gap }]}>
+            <View style={styles.gridWrapper}>
               {SHAPES.map((shape, index) => (
                 <GridCard
                   key={shape.name}
@@ -1277,15 +1262,11 @@ export const ShapesScreen: React.FC<ShapesScreenProps> = ({ navigation }) => {
         </>
       ) : viewMode === 'match' ? (
         <>
-          <View style={[
-            styles.header, 
-            { marginTop: insets.top + (isLandscape ? 5 : 10), paddingHorizontal: insets.left + 15 },
-            isLandscape && { marginBottom: 5 },
-          ]}>
-            <TouchableOpacity onPress={() => setViewMode('grid')} style={[styles.backBtn, isLandscape && { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 }]}>
-              <Text style={[styles.backText, isLandscape && { fontSize: 13 }]}>← Back</Text>
+          <View style={[styles.header, { marginTop: insets.top + 10 }]}>
+            <TouchableOpacity onPress={() => setViewMode('grid')} style={styles.backBtn}>
+              <Text style={styles.backText}>← Back</Text>
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, isLandscape && { fontSize: 18 }]}>🎮 Match Game</Text>
+            <Text style={styles.headerTitle}>🎮 Match Game</Text>
             <View style={styles.headerSpace} />
           </View>
 
@@ -1293,9 +1274,9 @@ export const ShapesScreen: React.FC<ShapesScreenProps> = ({ navigation }) => {
         </>
       ) : (
         <>
-          <View style={[styles.flashcardHeader, { marginTop: insets.top + 5, paddingHorizontal: insets.left + 15 }]}>
-            <TouchableOpacity onPress={closeFlashcard} style={[styles.backArrowBtn, isLandscape && { width: 50, height: 50 }]}>
-              <Text style={[styles.backArrowText, isLandscape && { fontSize: 22 }]}>↩</Text>
+          <View style={[styles.flashcardHeader, { marginTop: insets.top + 10 }]}>
+            <TouchableOpacity onPress={closeFlashcard} style={styles.backArrowBtn}>
+              <Text style={styles.backArrowText}>↩</Text>
             </TouchableOpacity>
           </View>
 
@@ -1311,7 +1292,7 @@ export const ShapesScreen: React.FC<ShapesScreenProps> = ({ navigation }) => {
           )}
         </>
       )}
-    </View>
+    </ImageBackground>
   );
 };
 
@@ -1320,223 +1301,67 @@ const CARD_WIDTH = (width - 40) / 2;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFB6C1',
-  },
-  skyBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: height * 0.75,
-    backgroundColor: '#FFB6C1',
-  },
-  bgSun: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    width: 60,
-    height: 60,
-  },
-  bgCloud1: {
-    position: 'absolute',
-    top: 70,
-    left: 10,
-    width: 50,
-    height: 50,
-    opacity: 0.9,
-  },
-  bgCloud2: {
-    position: 'absolute',
-    top: 50,
-    left: width * 0.35,
-    width: 45,
-    height: 45,
-    opacity: 0.8,
-  },
-  bgCloud3: {
-    position: 'absolute',
-    top: 90,
-    right: 80,
-    width: 40,
-    height: 40,
-    opacity: 0.7,
-  },
-  bgRainbow: {
-    position: 'absolute',
-    top: 120,
-    left: width * 0.3,
-    width: 70,
-    height: 70,
-    opacity: 0.6,
-  },
-  bgStar1: {
-    position: 'absolute',
-    top: 100,
-    left: 50,
-    width: 25,
-    height: 25,
-    opacity: 0.7,
-  },
-  bgStar2: {
-    position: 'absolute',
-    top: 140,
-    right: 40,
-    width: 20,
-    height: 20,
-    opacity: 0.6,
-  },
-  bgSparkle1: {
-    position: 'absolute',
-    top: 160,
-    left: 30,
-    width: 22,
-    height: 22,
-    opacity: 0.7,
-  },
-  bgSparkle2: {
-    position: 'absolute',
-    top: 130,
-    right: 120,
-    width: 18,
-    height: 18,
-    opacity: 0.6,
-  },
-  bgBird1: {
-    position: 'absolute',
-    top: 80,
-    left: width * 0.6,
-    width: 30,
-    height: 30,
-  },
-  bgBird2: {
-    position: 'absolute',
-    top: 110,
-    left: width * 0.7,
-    width: 25,
-    height: 25,
-    opacity: 0.8,
-  },
-  bgButterfly: {
-    position: 'absolute',
-    top: 180,
-    right: 30,
-    width: 35,
-    height: 35,
-  },
-  grassBackground: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: height * 0.25,
-    backgroundColor: '#98D8AA',
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-  },
-  bgTree1: {
-    position: 'absolute',
-    top: -30,
-    left: 10,
-    width: 50,
-    height: 50,
-  },
-  bgTree2: {
-    position: 'absolute',
-    top: -25,
-    right: 15,
-    width: 45,
-    height: 45,
-  },
-  bgFlower1: {
-    position: 'absolute',
-    top: 20,
-    left: 60,
-    width: 30,
-    height: 30,
-  },
-  bgFlower2: {
-    position: 'absolute',
-    top: 30,
-    left: 120,
-    width: 28,
-    height: 28,
-  },
-  bgFlower3: {
-    position: 'absolute',
-    top: 25,
-    right: 80,
-    width: 30,
-    height: 30,
-  },
-  bgFlower4: {
-    position: 'absolute',
-    top: 35,
-    right: 130,
-    width: 26,
-    height: 26,
-  },
-  bgBee: {
-    position: 'absolute',
-    top: 10,
-    left: width * 0.4,
-    width: 28,
-    height: 28,
-  },
-  bgLadybug: {
-    position: 'absolute',
-    top: 45,
-    right: 60,
-    width: 25,
-    height: 25,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    marginBottom: 6,
     zIndex: 10,
   },
   backBtn: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#FFE5E5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
   },
   backText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.purple,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FF6B6B',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
     color: '#fff',
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 2,
   },
-  headerSpace: { width: 80 },
+  headerSpace: { width: 60 },
   modeToggle: {
     flexDirection: 'row',
-    marginHorizontal: 20,
+    marginHorizontal: 15,
     marginBottom: 10,
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 25,
-    padding: 4,
+    padding: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
     zIndex: 10,
   },
   modeButton: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 22,
+    borderRadius: 20,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
   },
   modeButtonActive: {
-    backgroundColor: COLORS.white,
+    backgroundColor: '#FFD700',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -1554,63 +1379,139 @@ const styles = StyleSheet.create({
   modeText: { fontSize: 16, fontWeight: '600', color: COLORS.gray },
   modeTextActive: { color: COLORS.purple },
   instructionBox: {
-    backgroundColor: '#FFD700',
-    marginHorizontal: 20,
+    backgroundColor: '#FFFBEB',
+    marginHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    borderRadius: 18,
     alignItems: 'center',
-    marginBottom: 10,
-    zIndex: 10,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
   },
   instructionText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#333',
+    color: '#D97706',
   },
   gridContainer: {
-    paddingBottom: 50,
+    paddingHorizontal: 10,
+    paddingBottom: 100,
+    paddingTop: 10,
+    flexGrow: 1,
   },
   gridWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   gridCard: {
-    marginBottom: 6,
+    width: CARD_WIDTH,
+    margin: 4,
   },
   gridCardInner: {
     backgroundColor: '#fff',
-    borderRadius: 18,
-    borderWidth: 4,
-    padding: 12,
+    borderRadius: 14,
+    borderWidth: 2,
+    padding: 8,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 6,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  sparkleLeft: {
+    position: 'absolute',
+    top: 2,
+    left: 4,
+    fontSize: 8,
+    zIndex: 10,
+  },
+  sparkleRight: {
+    position: 'absolute',
+    top: 2,
+    right: 4,
+    fontSize: 8,
+    zIndex: 10,
   },
   gridBalloon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 36,
+    height: 40,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+    overflow: 'hidden',
+  },
+  balloonShine: {
+    position: 'absolute',
+    top: 3,
+    left: 5,
+    width: 10,
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 5,
+    transform: [{ rotate: '-25deg' }],
   },
   gridBalloonEmoji: {
-    fontSize: 32,
+    fontSize: 18,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   gridName: {
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#333',
     marginBottom: 4,
   },
+  sidesCircle: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   gridSides: {
-    fontSize: 12,
+    fontSize: 8,
     fontWeight: '600',
-    color: '#888',
+    color: '#666',
+  },
+  tapButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tapButtonText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#fff',
   },
   // Flashcard styles
   flashcardHeader: {

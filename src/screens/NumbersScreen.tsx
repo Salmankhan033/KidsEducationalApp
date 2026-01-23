@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  ImageBackground,
   StatusBar,
   PanResponder,
   GestureResponderEvent,
@@ -17,8 +18,10 @@ import { COLORS } from '../constants/colors';
 import { NUMBERS } from '../constants/gameData';
 import { speakNumber, stopSpeaking, speakCelebration, speakWord } from '../utils/speech';
 import { SCREEN_ICONS } from '../assets/images';
-import { MuteButton } from '../components';
 import { useResponsiveLayout } from '../utils/useResponsiveLayout';
+
+// Background Image
+const NUMBERS_BG_IMAGE = require('../images/bgImage/123BgImage.png');
 
 // Tab Type
 type TabType = 'learn' | 'write' | 'count';
@@ -56,6 +59,10 @@ const OBJECT_IMAGES: Record<string, { uri: string }> = {
 // Colors
 const BALLOON_COLORS = ['#E74C3C', '#27AE60', '#3498DB', '#9B59B6', '#F39C12', '#1ABC9C', '#E91E63', '#FF5722', '#00BCD4', '#8BC34A'];
 const CARD_BORDER_COLORS = ['#FF6B6B', '#27AE60', '#3498DB', '#9B59B6', '#F39C12', '#1ABC9C', '#E91E63', '#FF5722', '#00BCD4', '#8BC34A'];
+const CARD_BG_COLORS = [
+  '#FFE5E5', '#E5FFE8', '#E5F6FF', '#F0E5FF', '#FFF5E5', 
+  '#E5FFFF', '#FFE5F5', '#FFF0E5', '#E5FFFA', '#F5FFE5',
+];
 
 // Decorative background images
 const BG_IMAGES = {
@@ -698,43 +705,64 @@ interface GridCardProps {
   isLandscape: boolean;
 }
 
-const GridCard: React.FC<GridCardProps> = ({ numberData, index, onPress, cardWidth, isLandscape }) => {
+const GridCard: React.FC<GridCardProps> = ({ numberData, index, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
   const balloonColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
+  const bgColor = CARD_BG_COLORS[index % CARD_BG_COLORS.length];
+  const objectImage = OBJECT_IMAGES[numberData.objects.charAt(0)];
 
   useEffect(() => {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      delay: index * 15,
-      tension: 60,
-      friction: 8,
+      delay: index * 30,
+      tension: 80,
+      friction: 6,
     }).start();
-  }, [scaleAnim, index]);
 
-  const balloonSize = isLandscape ? 36 : 50;
+    // Floating animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: -3, duration: 1200, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [scaleAnim, bounceAnim, index]);
 
   return (
-    <Animated.View style={[styles.gridCard, { width: cardWidth, transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[
+      styles.gridCard, 
+      { transform: [{ scale: scaleAnim }, { translateY: bounceAnim }] }
+    ]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[
-          styles.gridCardInner, 
-          { borderColor: borderColor },
-          isLandscape && { borderRadius: 14, borderWidth: 3, padding: 8 },
-        ]}
-        activeOpacity={0.8}
+        style={[styles.gridCardInner, { borderColor: borderColor, backgroundColor: bgColor }]}
+        activeOpacity={0.9}
       >
-        <View style={[
-          styles.gridBalloon, 
-          { backgroundColor: balloonColor, width: balloonSize, height: balloonSize + 8, borderRadius: balloonSize / 2 }
-        ]}>
-          <Text style={[styles.gridBalloonNumber, isLandscape && { fontSize: 20 }]}>{numberData.num}</Text>
+        {/* Sparkle decorations */}
+        <Text style={styles.sparkleLeft}>✨</Text>
+        <Text style={styles.sparkleRight}>⭐</Text>
+        
+        {/* Big colorful number circle */}
+        <View style={[styles.gridBalloon, { backgroundColor: balloonColor }]}>
+          <View style={styles.balloonShine} />
+          <Text style={styles.gridBalloonNumber}>{numberData.num}</Text>
         </View>
 
-        <Text style={[styles.gridWord, isLandscape && { fontSize: 12, marginTop: 4 }]}>{numberData.word}</Text>
-        <Text style={[styles.gridObjects, isLandscape && { fontSize: 16, marginTop: 2 }]}>{numberData.objects}</Text>
+        {/* Word and objects display */}
+        <Text style={[styles.gridWord, { color: balloonColor }]}>{numberData.word}</Text>
+        
+        {/* Objects in colorful bubble */}
+        <View style={[styles.objectsCircle, { borderColor: `${balloonColor}40` }]}>
+          <Text style={styles.gridObjects}>{numberData.objects}</Text>
+        </View>
+
+        {/* Fun tap button */}
+        <View style={[styles.tapButton, { backgroundColor: balloonColor }]}>
+          <Text style={styles.tapButtonText}>🎯 TAP ME!</Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -2251,39 +2279,55 @@ interface WritingGridCardProps {
   isLandscape: boolean;
 }
 
-const WritingGridCard: React.FC<WritingGridCardProps> = ({ numberData, index, onPress, cardWidth, isLandscape }) => {
+const WritingGridCard: React.FC<WritingGridCardProps> = ({ numberData, index, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
   const bgColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
+  const cardBgColor = CARD_BG_COLORS[index % CARD_BG_COLORS.length];
 
   useEffect(() => {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      delay: index * 15,
-      tension: 60,
-      friction: 8,
+      delay: index * 30,
+      tension: 80,
+      friction: 6,
     }).start();
-  }, [scaleAnim, index]);
 
-  const circleSize = isLandscape ? 36 : 45;
+    // Floating animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, { toValue: -3, duration: 1200, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [scaleAnim, bounceAnim, index]);
 
   return (
-    <Animated.View style={[writingStyles.gridCard, { width: cardWidth, transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[
+      writingStyles.gridCard, 
+      { transform: [{ scale: scaleAnim }, { translateY: bounceAnim }] }
+    ]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[
-          writingStyles.gridCardInner, 
-          { borderColor },
-          isLandscape && { borderRadius: 12, borderWidth: 2, padding: 8 },
-        ]}
-        activeOpacity={0.8}
+        style={[writingStyles.gridCardInner, { borderColor, backgroundColor: cardBgColor }]}
+        activeOpacity={0.9}
       >
-        <View style={[writingStyles.numberCircle, { backgroundColor: bgColor, width: circleSize, height: circleSize, borderRadius: circleSize / 2 }]}>
-          <Text style={[writingStyles.gridNumber, isLandscape && { fontSize: 18 }]}>{numberData.num}</Text>
+        {/* Sparkle decorations */}
+        <Text style={writingStyles.sparkleLeft}>✨</Text>
+        <Text style={writingStyles.sparkleRight}>⭐</Text>
+        
+        <View style={[writingStyles.numberCircle, { backgroundColor: bgColor }]}>
+          <View style={writingStyles.circleShine} />
+          <Text style={writingStyles.gridNumber}>{numberData.num}</Text>
         </View>
-        <Text style={[writingStyles.gridWord, isLandscape && { fontSize: 11, marginTop: 4 }]}>{numberData.word}</Text>
-        <Text style={[writingStyles.gridWriteHint, isLandscape && { fontSize: 9 }]}>✏️ Write</Text>
+        <Text style={[writingStyles.gridWord, { color: bgColor }]}>{numberData.word}</Text>
+        
+        {/* Fun write button */}
+        <View style={[writingStyles.writeButton, { backgroundColor: bgColor }]}>
+          <Text style={writingStyles.writeButtonText}>✏️ Write</Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -2364,86 +2408,48 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
                           (activeTab === 'write' && writingViewMode === 'practice');
 
   return (
-    <View style={styles.container}>
+    <ImageBackground 
+      source={NUMBERS_BG_IMAGE} 
+      style={styles.container}
+      resizeMode="cover"
+    >
       <StatusBar barStyle="dark-content" />
-
-      {/* Beautiful Kid-Friendly Background */}
-      <View style={styles.skyBackground}>
-        <Image source={BG_IMAGES.sun} style={styles.bgSun} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud1} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud2} />
-        <Image source={BG_IMAGES.cloud} style={styles.bgCloud3} />
-        <Image source={BG_IMAGES.rainbow} style={styles.bgRainbow} />
-        <Image source={BG_IMAGES.star} style={styles.bgStar1} />
-        <Image source={BG_IMAGES.star} style={styles.bgStar2} />
-        <Image source={BG_IMAGES.sparkle} style={styles.bgSparkle1} />
-        <Image source={BG_IMAGES.sparkle} style={styles.bgSparkle2} />
-        <Image source={BG_IMAGES.bird} style={styles.bgBird1} />
-        <Image source={BG_IMAGES.bird} style={styles.bgBird2} />
-        <Image source={BG_IMAGES.butterfly} style={styles.bgButterfly} />
-      </View>
-
-      {/* Grass with flowers */}
-      <View style={styles.grassBackground}>
-        <Image source={BG_IMAGES.tree} style={styles.bgTree1} />
-        <Image source={BG_IMAGES.tree} style={styles.bgTree2} />
-        <Image source={BG_IMAGES.flower} style={styles.bgFlower1} />
-        <Image source={BG_IMAGES.tulip} style={styles.bgFlower2} />
-        <Image source={BG_IMAGES.flower} style={styles.bgFlower3} />
-        <Image source={BG_IMAGES.tulip} style={styles.bgFlower4} />
-        <Image source={BG_IMAGES.bee} style={styles.bgBee} />
-        <Image source={BG_IMAGES.ladybug} style={styles.bgLadybug} />
-      </View>
-
-      {/* Mute Button - Top Right */}
-      <MuteButton 
-        style={{ position: 'absolute', right: insets.right + 15, top: insets.top + 10, zIndex: 100 }} 
-        size={isLandscape ? 'small' : 'medium'} 
-      />
 
       {/* Main Header with Back Button */}
       {!isInDetailView && (
-        <View style={[
-          styles.header, 
-          { marginTop: insets.top + (isLandscape ? 5 : 10), paddingHorizontal: insets.left + 15 },
-          isLandscape && { marginBottom: 5 },
-        ]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, isLandscape && { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 }]}>
-            <Text style={[styles.backText, isLandscape && { fontSize: 13 }]}>← Back</Text>
+        <View style={[styles.header, { marginTop: insets.top + 10 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, isLandscape && { fontSize: 18 }]}>🔢 Numbers</Text>
+          <Text style={styles.headerTitle}>🔢 123</Text>
           <View style={styles.headerSpace} />
         </View>
       )}
 
       {/* Tab Navigation - Only show when not in detail view */}
       {!isInDetailView && (
-        <View style={[
-          styles.tabContainer, 
-          { marginHorizontal: insets.left + 15 },
-          isLandscape && { marginBottom: 5, borderRadius: 18, padding: 3 },
-        ]}>
+        <View style={styles.tabContainer}>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'learn' && styles.tabButtonActive, isLandscape && { paddingVertical: 8, borderRadius: 15 }]}
+            style={[styles.tabButton, activeTab === 'learn' && styles.tabButtonActive]}
             onPress={() => setActiveTab('learn')}
           >
-            <Text style={[styles.tabText, activeTab === 'learn' && styles.tabTextActive, isLandscape && { fontSize: 12 }]}>
-              📚 Learn
+            <Text style={[styles.tabText, activeTab === 'learn' && styles.tabTextActive]}>
+              📚 Learn 123
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'write' && styles.tabButtonActive, isLandscape && { paddingVertical: 8, borderRadius: 15 }]}
+            style={[styles.tabButton, activeTab === 'write' && styles.tabButtonActive]}
             onPress={() => setActiveTab('write')}
           >
-            <Text style={[styles.tabText, activeTab === 'write' && styles.tabTextActive, isLandscape && { fontSize: 12 }]}>
-              ✏️ Write
+            <Text style={[styles.tabText, activeTab === 'write' && styles.tabTextActive]}>
+              ✏️ Write 123
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'count' && styles.tabButtonActive, isLandscape && { paddingVertical: 8, borderRadius: 15 }]}
+            style={[styles.tabButton, activeTab === 'count' && styles.tabButtonActive]}
             onPress={() => setActiveTab('count')}
           >
-            <Text style={[styles.tabText, activeTab === 'count' && styles.tabTextActive, isLandscape && { fontSize: 12 }]}>
+            <Text style={[styles.tabText, activeTab === 'count' && styles.tabTextActive]}>
               🎮 Count
             </Text>
           </TouchableOpacity>
@@ -2455,26 +2461,23 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
         <>
           {viewMode === 'grid' ? (
             <>
-              <View style={[styles.instructionBox, isLandscape && styles.instructionBoxLandscape]}>
-                <Text style={[styles.instructionText, isLandscape && { fontSize: 11 }]}>✨ Tap to learn numbers! ✨</Text>
+              <View style={styles.instructionBox}>
+                <Text style={styles.instructionText}>✨ Tap to learn numbers! ✨</Text>
               </View>
 
               <ScrollView 
-                contentContainerStyle={[
-                  styles.gridContainer,
-                  { paddingHorizontal: padding + insets.left, paddingRight: padding + insets.right }
-                ]} 
+                contentContainerStyle={styles.gridContainer}
                 showsVerticalScrollIndicator={false}
               >
-                <View style={[styles.gridWrapper, { gap: gap }]}>
+                <View style={styles.gridWrapper}>
                   {NUMBERS.map((num, index) => (
                     <GridCard
                       key={num.num}
                       numberData={num}
                       index={index}
                       onPress={() => openFlashcard(index)}
-                      cardWidth={gridCardWidth}
-                      isLandscape={isLandscape}
+                      cardWidth={CARD_WIDTH}
+                      isLandscape={false}
                     />
                   ))}
                 </View>
@@ -2482,9 +2485,9 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
             </>
           ) : (
             <>
-              <View style={[styles.flashcardHeader, { marginTop: insets.top + 5, paddingHorizontal: insets.left + 15 }]}>
-                <TouchableOpacity onPress={closeFlashcard} style={[styles.backArrowBtn, isLandscape && { width: 50, height: 50 }]}>
-                  <Text style={[styles.backArrowText, isLandscape && { fontSize: 22 }]}>↩</Text>
+              <View style={[styles.flashcardHeader, { marginTop: insets.top + 10 }]}>
+                <TouchableOpacity onPress={closeFlashcard} style={styles.backArrowBtn}>
+                  <Text style={styles.backArrowText}>↩</Text>
                 </TouchableOpacity>
               </View>
 
@@ -2510,26 +2513,23 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
         <>
           {writingViewMode === 'grid' ? (
             <>
-              <View style={[styles.instructionBox, isLandscape && styles.instructionBoxLandscape]}>
-                <Text style={[styles.instructionText, isLandscape && { fontSize: 11 }]}>✏️ Select a number to practice writing! ✏️</Text>
+              <View style={styles.instructionBox}>
+                <Text style={styles.instructionText}>✏️ Select a number to practice writing! ✏️</Text>
               </View>
 
               <ScrollView 
-                contentContainerStyle={[
-                  styles.gridContainer,
-                  { paddingHorizontal: padding + insets.left, paddingRight: padding + insets.right }
-                ]} 
+                contentContainerStyle={styles.gridContainer}
                 showsVerticalScrollIndicator={false}
               >
-                <View style={[styles.gridWrapper, { gap: gap }]}>
+                <View style={styles.gridWrapper}>
                   {NUMBERS.map((num, idx) => (
                     <WritingGridCard
                       key={`write-${num.num}`}
                       numberData={num}
                       index={idx}
                       onPress={() => openWritingPractice(idx)}
-                      cardWidth={gridCardWidth}
-                      isLandscape={isLandscape}
+                      cardWidth={CARD_WIDTH}
+                      isLandscape={false}
                     />
                   ))}
                 </View>
@@ -2537,11 +2537,11 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
             </>
           ) : (
             <>
-              <View style={[styles.flashcardHeader, { marginTop: insets.top + 5, paddingHorizontal: insets.left + 15 }]}>
-                <TouchableOpacity onPress={closeWritingPractice} style={[styles.backArrowBtn, isLandscape && { width: 50, height: 50 }]}>
-                  <Text style={[styles.backArrowText, isLandscape && { fontSize: 22 }]}>↩</Text>
+              <View style={[styles.flashcardHeader, { marginTop: insets.top + 10 }]}>
+                <TouchableOpacity onPress={closeWritingPractice} style={styles.backArrowBtn}>
+                  <Text style={styles.backArrowText}>↩</Text>
                 </TouchableOpacity>
-                <Text style={[styles.writingHeaderTitle, isLandscape && { fontSize: 18 }]}>✏️ Writing Practice</Text>
+                <Text style={styles.writingHeaderTitle}>✏️ Writing Practice</Text>
                 <View style={{ width: 65 }} />
               </View>
 
@@ -2570,7 +2570,7 @@ export const NumbersScreen: React.FC<NumbersScreenProps> = ({ navigation }) => {
           <CountGame score={score} setScore={setScore} />
         </>
       )}
-    </View>
+    </ImageBackground>
   );
 };
 
@@ -2579,203 +2579,42 @@ const CARD_WIDTH = (width - 40) / 2;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#87CEEB',
-  },
-  skyBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: height * 0.75,
-    backgroundColor: '#87CEEB',
-  },
-  bgSun: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    width: 60,
-    height: 60,
-  },
-  bgCloud1: {
-    position: 'absolute',
-    top: 70,
-    left: 10,
-    width: 50,
-    height: 50,
-    opacity: 0.9,
-  },
-  bgCloud2: {
-    position: 'absolute',
-    top: 50,
-    left: width * 0.35,
-    width: 45,
-    height: 45,
-    opacity: 0.8,
-  },
-  bgCloud3: {
-    position: 'absolute',
-    top: 90,
-    right: 80,
-    width: 40,
-    height: 40,
-    opacity: 0.7,
-  },
-  bgRainbow: {
-    position: 'absolute',
-    top: 120,
-    left: width * 0.3,
-    width: 70,
-    height: 70,
-    opacity: 0.6,
-  },
-  bgStar1: {
-    position: 'absolute',
-    top: 100,
-    left: 50,
-    width: 25,
-    height: 25,
-    opacity: 0.7,
-  },
-  bgStar2: {
-    position: 'absolute',
-    top: 140,
-    right: 40,
-    width: 20,
-    height: 20,
-    opacity: 0.6,
-  },
-  bgSparkle1: {
-    position: 'absolute',
-    top: 160,
-    left: 30,
-    width: 22,
-    height: 22,
-    opacity: 0.7,
-  },
-  bgSparkle2: {
-    position: 'absolute',
-    top: 130,
-    right: 120,
-    width: 18,
-    height: 18,
-    opacity: 0.6,
-  },
-  bgBird1: {
-    position: 'absolute',
-    top: 80,
-    left: width * 0.6,
-    width: 30,
-    height: 30,
-  },
-  bgBird2: {
-    position: 'absolute',
-    top: 110,
-    left: width * 0.7,
-    width: 25,
-    height: 25,
-    opacity: 0.8,
-  },
-  bgButterfly: {
-    position: 'absolute',
-    top: 180,
-    right: 30,
-    width: 35,
-    height: 35,
-  },
-  grassBackground: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: height * 0.25,
-    backgroundColor: '#7CCD7C',
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-  },
-  bgTree1: {
-    position: 'absolute',
-    top: -30,
-    left: 10,
-    width: 50,
-    height: 50,
-  },
-  bgTree2: {
-    position: 'absolute',
-    top: -25,
-    right: 15,
-    width: 45,
-    height: 45,
-  },
-  bgFlower1: {
-    position: 'absolute',
-    top: 20,
-    left: 60,
-    width: 30,
-    height: 30,
-  },
-  bgFlower2: {
-    position: 'absolute',
-    top: 30,
-    left: 120,
-    width: 28,
-    height: 28,
-  },
-  bgFlower3: {
-    position: 'absolute',
-    top: 25,
-    right: 80,
-    width: 30,
-    height: 30,
-  },
-  bgFlower4: {
-    position: 'absolute',
-    top: 35,
-    right: 130,
-    width: 26,
-    height: 26,
-  },
-  bgBee: {
-    position: 'absolute',
-    top: 10,
-    left: width * 0.4,
-    width: 28,
-    height: 28,
-  },
-  bgLadybug: {
-    position: 'absolute',
-    top: 45,
-    right: 60,
-    width: 25,
-    height: 25,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    marginBottom: 6,
     zIndex: 10,
   },
   backBtn: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#FFE5E5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
   },
   backText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.purple,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FF6B6B',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
     color: '#fff',
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 2,
   },
-  headerSpace: { width: 80 },
+  headerSpace: { width: 60 },
   // Tab Navigation Styles
   tabContainer: {
     flexDirection: 'row',
@@ -2824,69 +2663,138 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
   },
   instructionBox: {
-    backgroundColor: '#FFD700',
-    marginHorizontal: 20,
+    backgroundColor: '#FFFBEB',
+    marginHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    borderRadius: 18,
     alignItems: 'center',
-    marginBottom: 10,
-    zIndex: 10,
-  },
-  instructionBoxLandscape: {
-    paddingVertical: 6,
-    marginHorizontal: 10,
-    marginBottom: 5,
-    borderRadius: 15,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
   },
   instructionText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#333',
+    color: '#D97706',
   },
   gridContainer: {
-    paddingBottom: 50,
+    paddingHorizontal: 10,
+    paddingBottom: 100,
+    paddingTop: 10,
+    flexGrow: 1,
   },
   gridWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   gridCard: {
-    marginBottom: 6,
+    width: CARD_WIDTH,
+    margin: 4,
   },
   gridCardInner: {
     backgroundColor: '#fff',
-    borderRadius: 18,
-    borderWidth: 4,
-    padding: 12,
+    borderRadius: 14,
+    borderWidth: 2,
+    padding: 8,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 6,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  sparkleLeft: {
+    position: 'absolute',
+    top: 2,
+    left: 4,
+    fontSize: 8,
+    zIndex: 10,
+  },
+  sparkleRight: {
+    position: 'absolute',
+    top: 2,
+    right: 4,
+    fontSize: 8,
+    zIndex: 10,
   },
   gridBalloon: {
-    width: 50,
-    height: 58,
-    borderRadius: 25,
+    width: 36,
+    height: 40,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+    overflow: 'hidden',
+  },
+  balloonShine: {
+    position: 'absolute',
+    top: 3,
+    left: 5,
+    width: 10,
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 5,
+    transform: [{ rotate: '-25deg' }],
   },
   gridBalloonNumber: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: '900',
     color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   gridWord: {
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#555',
     marginBottom: 4,
   },
+  objectsCircle: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 4,
+    borderWidth: 1,
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   gridObjects: {
-    fontSize: 20,
+    fontSize: 16,
+  },
+  tapButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tapButtonText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#fff',
   },
   // Flashcard styles
   flashcardHeader: {
@@ -4018,42 +3926,89 @@ const writingStyles = StyleSheet.create({
   },
   // Writing Grid Card
   gridCard: {
-    marginBottom: 6,
+    width: CARD_WIDTH,
+    margin: 4,
   },
   gridCardInner: {
     backgroundColor: '#fff',
-    borderRadius: 15,
-    borderWidth: 3,
-    padding: 12,
+    borderRadius: 14,
+    borderWidth: 2,
+    padding: 8,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 6,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  sparkleLeft: {
+    position: 'absolute',
+    top: 2,
+    left: 4,
+    fontSize: 8,
+    zIndex: 10,
+  },
+  sparkleRight: {
+    position: 'absolute',
+    top: 2,
+    right: 4,
+    fontSize: 8,
+    zIndex: 10,
   },
   numberCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 36,
+    height: 40,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+    overflow: 'hidden',
+  },
+  circleShine: {
+    position: 'absolute',
+    top: 3,
+    left: 5,
+    width: 10,
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 5,
+    transform: [{ rotate: '-25deg' }],
   },
   gridNumber: {
-    fontSize: 26,
+    fontSize: 18,
     fontWeight: '900',
     color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   gridWord: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#666',
-    marginBottom: 5,
+    marginBottom: 4,
   },
-  gridWriteHint: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#888',
+  writeButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  writeButtonText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#fff',
   },
 });

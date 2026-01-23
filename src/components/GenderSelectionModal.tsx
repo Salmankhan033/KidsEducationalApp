@@ -8,11 +8,14 @@ import {
   Animated,
   Dimensions,
   Image,
-  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGender, Gender, CHILD_IMAGES } from '../context/GenderContext';
+import { useGender, Gender } from '../context/GenderContext';
 import { speak, setVoiceGender } from '../utils/speech';
+
+// Import character images from bgImage folder
+const SelectBoyImage = require('../images/bgImage/SelectBoy.png');
+const SelectGirlImage = require('../images/bgImage/SelectGirl.png');
 
 interface GenderSelectionModalProps {
   visible: boolean;
@@ -34,48 +37,84 @@ const GenderSelectionModal: React.FC<GenderSelectionModalProps> = ({ visible, on
 
   const isLandscape = dimensions.width > dimensions.height;
   
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const bounceAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+  const boySlideAnim = useRef(new Animated.Value(-150)).current;
+  const girlSlideAnim = useRef(new Animated.Value(150)).current;
+  const titleScaleAnim = useRef(new Animated.Value(0)).current;
+  const starRotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
+      // Reset animations
+      boySlideAnim.setValue(-150);
+      girlSlideAnim.setValue(150);
+      titleScaleAnim.setValue(0);
+      
       // Fade in animation
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 400,
         useNativeDriver: true,
       }).start();
 
-      // Scale animation for content
-      Animated.spring(scaleAnim, {
+      // Title bounce in
+      Animated.spring(titleScaleAnim, {
         toValue: 1,
         useNativeDriver: true,
-        delay: 100,
+        delay: 150,
         tension: 60,
-        friction: 7,
+        friction: 6,
       }).start();
 
-      // Bounce animation for characters
+      // Slide in characters
+      Animated.parallel([
+        Animated.spring(boySlideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          delay: 250,
+          tension: 45,
+          friction: 8,
+        }),
+        Animated.spring(girlSlideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          delay: 350,
+          tension: 45,
+          friction: 8,
+        }),
+      ]).start();
+
+      // Continuous bounce animation for characters
       Animated.loop(
         Animated.sequence([
           Animated.timing(bounceAnim, {
             toValue: 1,
-            duration: 800,
+            duration: 1500,
             useNativeDriver: true,
           }),
           Animated.timing(bounceAnim, {
             toValue: 0,
-            duration: 800,
+            duration: 1500,
             useNativeDriver: true,
           }),
         ])
       ).start();
+
+      // Star rotation animation
+      Animated.loop(
+        Animated.timing(starRotateAnim, {
+          toValue: 1,
+          duration: 5000,
+          useNativeDriver: true,
+        })
+      ).start();
     } else {
       fadeAnim.setValue(0);
-      scaleAnim.setValue(0);
+      boySlideAnim.setValue(-150);
+      girlSlideAnim.setValue(150);
     }
-  }, [visible, scaleAnim, bounceAnim, fadeAnim]);
+  }, [visible, bounceAnim, fadeAnim, boySlideAnim, girlSlideAnim, titleScaleAnim, starRotateAnim]);
 
   const handleGenderSelect = async (selectedGender: Gender) => {
     await setGender(selectedGender);
@@ -94,160 +133,213 @@ const GenderSelectionModal: React.FC<GenderSelectionModalProps> = ({ visible, on
 
   const translateY = bounceAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -8],
+    outputRange: [0, -10],
   });
 
-  const cardSize = isLandscape ? 90 : 110;
+  const starRotate = starRotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  // Calculate responsive sizes
+  const cardWidth = isLandscape 
+    ? Math.min((dimensions.width - 100) / 2.5, 220)
+    : Math.min((dimensions.width - 60) / 2, 180);
+  
+  const characterHeight = isLandscape 
+    ? Math.min(dimensions.height * 0.5, 200) 
+    : Math.min(dimensions.height * 0.32, 260);
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
     >
       <View style={styles.overlay}>
-        {/* Decorative background elements */}
-        <View style={styles.decorationsContainer}>
-          <Text style={[styles.floatingEmoji, { top: '8%', left: '5%' }]}>⭐</Text>
-          <Text style={[styles.floatingEmoji, { top: '12%', right: '8%' }]}>🌈</Text>
-          <Text style={[styles.floatingEmoji, { bottom: '15%', left: '8%' }]}>🎈</Text>
-          <Text style={[styles.floatingEmoji, { top: '40%', left: '3%' }]}>🦋</Text>
-          <Text style={[styles.floatingEmoji, { bottom: '20%', right: '5%' }]}>🌟</Text>
-          <Text style={[styles.floatingEmoji, { top: '5%', left: '45%' }]}>🎉</Text>
-        </View>
-
         <Animated.View
           style={[
-            styles.contentContainer,
+            styles.container,
             {
               opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
-              paddingLeft: insets.left + 20,
-              paddingRight: insets.right + 20,
+              paddingLeft: insets.left + 16,
+              paddingRight: insets.right + 16,
               paddingTop: insets.top + 10,
               paddingBottom: insets.bottom + 10,
             },
           ]}
         >
-          <ScrollView 
-            contentContainerStyle={[
-              styles.scrollContent,
-              isLandscape && styles.scrollContentLandscape
-            ]}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Left side - Title Section */}
-            <View style={[
-              styles.titleSection,
-              isLandscape && styles.titleSectionLandscape
-            ]}>
-              <Text style={[styles.welcomeEmoji, isLandscape && styles.welcomeEmojiLandscape]}>👋</Text>
-              <Text style={[styles.title, isLandscape && styles.titleLandscape]}>Welcome!</Text>
-              <Text style={[styles.subtitle, isLandscape && styles.subtitleLandscape]}>Who's learning today?</Text>
-              <View style={[styles.messageContainer, isLandscape && styles.messageContainerLandscape]}>
-                <Text style={[styles.message, isLandscape && styles.messageLandscape]}>🎨 Let's make learning fun! 🎨</Text>
+          {/* Floating decorative elements */}
+          <View style={styles.decorationsContainer}>
+            <Animated.Text style={[styles.floatingEmoji, styles.emoji1, { transform: [{ rotate: starRotate }] }]}>⭐</Animated.Text>
+            <Text style={[styles.floatingEmoji, styles.emoji2]}>🌈</Text>
+            <Animated.Text style={[styles.floatingEmoji, styles.emoji3, { transform: [{ rotate: starRotate }] }]}>✨</Animated.Text>
+            <Text style={[styles.floatingEmoji, styles.emoji4]}>🎈</Text>
+            <Animated.Text style={[styles.floatingEmoji, styles.emoji5, { transform: [{ rotate: starRotate }] }]}>🌟</Animated.Text>
+            <Text style={[styles.floatingEmoji, styles.emoji6]}>🦋</Text>
+            <Text style={[styles.floatingEmoji, styles.emoji7]}>🎉</Text>
+            <Animated.Text style={[styles.floatingEmoji, styles.emoji8, { transform: [{ rotate: starRotate }] }]}>💫</Animated.Text>
+            <Text style={[styles.floatingEmoji, styles.emoji9]}>🎀</Text>
+            <Text style={[styles.floatingEmoji, styles.emoji10]}>🚀</Text>
+          </View>
+
+          {/* Title Section */}
+          <Animated.View style={[
+            styles.titleSection,
+            isLandscape && styles.titleSectionLandscape,
+            { transform: [{ scale: titleScaleAnim }] }
+          ]}>
+            <View style={styles.titleContainer}>
+              <Text style={[styles.welcomeEmoji, isLandscape && styles.welcomeEmojiLandscape]}>🎊</Text>
+              <View style={styles.titleTextContainer}>
+                <Text style={[styles.title, isLandscape && styles.titleLandscape]}>Welcome!</Text>
+                <Text style={[styles.subtitle, isLandscape && styles.subtitleLandscape]}>Who's learning today?</Text>
               </View>
+              <Text style={[styles.welcomeEmoji, isLandscape && styles.welcomeEmojiLandscape]}>🎊</Text>
             </View>
+          </Animated.View>
 
-            {/* Right side - Gender Cards */}
-            <View style={[
-              styles.cardsContainer,
-              isLandscape && styles.cardsContainerLandscape
+          {/* Character Cards Container */}
+          <View style={[
+            styles.cardsContainer,
+            isLandscape && styles.cardsContainerLandscape
+          ]}>
+            {/* Boy Card */}
+            <Animated.View style={[
+              styles.cardWrapper,
+              { 
+                transform: [{ translateX: boySlideAnim }],
+                width: cardWidth,
+              }
             ]}>
-              {/* Boy Card */}
               <TouchableOpacity
-                style={[
-                  styles.genderCard, 
-                  styles.boyCard,
-                  isLandscape && styles.genderCardLandscape
-                ]}
+                style={[styles.genderCard, styles.boyCard]}
                 onPress={() => handleGenderSelect('male')}
-                activeOpacity={0.85}
+                activeOpacity={0.9}
               >
-                <View style={[styles.cardGlow, styles.boyGlow]} />
-                <View style={styles.emojiContainer}>
-                  <Text style={[styles.cardEmoji, isLandscape && styles.cardEmojiLandscape]}>🚀</Text>
-                  <Text style={[styles.cardEmoji, isLandscape && styles.cardEmojiLandscape]}>⭐</Text>
+                {/* Background decoration circles */}
+                <View style={[styles.bgCircle, styles.boyBgCircle1]} />
+                <View style={[styles.bgCircle, styles.boyBgCircle2]} />
+                
+                {/* Decorative corner elements */}
+                <View style={[styles.cornerDecor, styles.topLeftDecor]}>
+                  <Text style={styles.cornerEmoji}>🚀</Text>
                 </View>
-                <Animated.View style={[
-                  styles.imageContainer, 
-                  styles.boyImageBg, 
-                  { 
-                    transform: [{ translateY }],
-                    width: cardSize,
-                    height: cardSize,
-                    borderRadius: cardSize / 2,
-                  }
-                ]}>
-                  <Image
-                    source={CHILD_IMAGES.male.avatar}
-                    style={[
-                      styles.characterImage,
-                      {
-                        width: cardSize - 8,
-                        height: cardSize - 8,
-                        borderRadius: (cardSize - 8) / 2,
-                      }
-                    ]}
-                    resizeMode="cover"
-                  />
-                </Animated.View>
-                <Text style={[styles.genderLabel, styles.boyLabel, isLandscape && styles.genderLabelLandscape]}>I'm a Boy!</Text>
-                <Text style={[styles.genderDescription, isLandscape && styles.genderDescriptionLandscape]}>Adventure awaits! 🎮</Text>
-                <View style={styles.sparkles}>
-                  <Text style={styles.sparkleEmoji}>✨</Text>
-                  <Text style={styles.sparkleEmoji}>💫</Text>
+                <View style={[styles.cornerDecor, styles.topRightDecor]}>
+                  <Text style={styles.cornerEmoji}>⭐</Text>
                 </View>
-              </TouchableOpacity>
 
-              {/* Girl Card */}
-              <TouchableOpacity
-                style={[
-                  styles.genderCard, 
-                  styles.girlCard,
-                  isLandscape && styles.genderCardLandscape
-                ]}
-                onPress={() => handleGenderSelect('female')}
-                activeOpacity={0.85}
-              >
-                <View style={[styles.cardGlow, styles.girlGlow]} />
-                <View style={styles.emojiContainer}>
-                  <Text style={[styles.cardEmoji, isLandscape && styles.cardEmojiLandscape]}>🌸</Text>
-                  <Text style={[styles.cardEmoji, isLandscape && styles.cardEmojiLandscape]}>💖</Text>
-                </View>
+                {/* Character Image */}
                 <Animated.View style={[
-                  styles.imageContainer, 
-                  styles.girlImageBg, 
-                  { 
-                    transform: [{ translateY }],
-                    width: cardSize,
-                    height: cardSize,
-                    borderRadius: cardSize / 2,
-                  }
+                  styles.characterContainer,
+                  { transform: [{ translateY }] }
                 ]}>
                   <Image
-                    source={CHILD_IMAGES.female.avatar}
+                    source={SelectBoyImage}
                     style={[
                       styles.characterImage,
-                      {
-                        width: cardSize - 8,
-                        height: cardSize - 8,
-                        borderRadius: (cardSize - 8) / 2,
-                      }
+                      { height: characterHeight, width: cardWidth - 20 }
                     ]}
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                 </Animated.View>
-                <Text style={[styles.genderLabel, styles.girlLabel, isLandscape && styles.genderLabelLandscape]}>I'm a Girl!</Text>
-                <Text style={[styles.genderDescription, isLandscape && styles.genderDescriptionLandscape]}>Magic awaits! ✨</Text>
-                <View style={styles.sparkles}>
-                  <Text style={styles.sparkleEmoji}>🦋</Text>
-                  <Text style={styles.sparkleEmoji}>🌟</Text>
+
+                {/* Label Section */}
+                <View style={styles.labelSection}>
+                  <View style={[styles.labelBadge, styles.boyBadge]}>
+                    <Text style={[styles.genderLabel, isLandscape && styles.genderLabelLandscape]}>
+                      I'm a Boy! 🎮
+                    </Text>
+                  </View>
+                  <Text style={[styles.genderDescription, isLandscape && styles.genderDescriptionLandscape]}>
+                    Adventure awaits!
+                  </Text>
+                </View>
+
+                {/* Bottom sparkles */}
+                <View style={styles.sparklesRow}>
+                  <Text style={styles.sparkle}>✨</Text>
+                  <Text style={styles.sparkle}>💫</Text>
+                  <Text style={styles.sparkle}>⚡</Text>
                 </View>
               </TouchableOpacity>
+            </Animated.View>
+
+            {/* Girl Card */}
+            <Animated.View style={[
+              styles.cardWrapper,
+              { 
+                transform: [{ translateX: girlSlideAnim }],
+                width: cardWidth,
+              }
+            ]}>
+              <TouchableOpacity
+                style={[styles.genderCard, styles.girlCard]}
+                onPress={() => handleGenderSelect('female')}
+                activeOpacity={0.9}
+              >
+                {/* Background decoration circles */}
+                <View style={[styles.bgCircle, styles.girlBgCircle1]} />
+                <View style={[styles.bgCircle, styles.girlBgCircle2]} />
+                
+                {/* Decorative corner elements */}
+                <View style={[styles.cornerDecor, styles.topLeftDecor]}>
+                  <Text style={styles.cornerEmoji}>🌸</Text>
+                </View>
+                <View style={[styles.cornerDecor, styles.topRightDecor]}>
+                  <Text style={styles.cornerEmoji}>💖</Text>
+                </View>
+
+                {/* Character Image */}
+                <Animated.View style={[
+                  styles.characterContainer,
+                  { transform: [{ translateY }] }
+                ]}>
+                  <Image
+                    source={SelectGirlImage}
+                    style={[
+                      styles.characterImage,
+                      { height: characterHeight, width: cardWidth - 20 }
+                    ]}
+                    resizeMode="contain"
+                  />
+                </Animated.View>
+
+                {/* Label Section */}
+                <View style={styles.labelSection}>
+                  <View style={[styles.labelBadge, styles.girlBadge]}>
+                    <Text style={[styles.genderLabel, isLandscape && styles.genderLabelLandscape]}>
+                      I'm a Girl! 👑
+                    </Text>
+                  </View>
+                  <Text style={[styles.genderDescription, isLandscape && styles.genderDescriptionLandscape]}>
+                    Magic awaits!
+                  </Text>
+                </View>
+
+                {/* Bottom sparkles */}
+                <View style={styles.sparklesRow}>
+                  <Text style={styles.sparkle}>🌟</Text>
+                  <Text style={styles.sparkle}>💕</Text>
+                  <Text style={styles.sparkle}>✨</Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+
+          {/* Bottom Message */}
+          <Animated.View style={[
+            styles.bottomMessage,
+            isLandscape && styles.bottomMessageLandscape,
+            { transform: [{ scale: titleScaleAnim }] }
+          ]}>
+            <View style={styles.messageContainer}>
+              <Text style={[styles.messageText, isLandscape && styles.messageTextLandscape]}>
+                🎨 Let's make learning fun together! 🎨
+              </Text>
             </View>
-          </ScrollView>
+          </Animated.View>
         </Animated.View>
       </View>
     </Modal>
@@ -257,7 +349,12 @@ const GenderSelectionModal: React.FC<GenderSelectionModalProps> = ({ visible, on
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: '#FFFAF0',
+    backgroundColor: '#FFF9E6',
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   decorationsContainer: {
     position: 'absolute',
@@ -269,208 +366,243 @@ const styles = StyleSheet.create({
   },
   floatingEmoji: {
     position: 'absolute',
-    fontSize: 28,
+    fontSize: 32,
+    opacity: 0.85,
   },
-  contentContainer: {
-    flex: 1,
-    zIndex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-  },
-  scrollContentLandscape: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 30,
-  },
+  emoji1: { top: '6%', left: '6%' },
+  emoji2: { top: '4%', right: '6%' },
+  emoji3: { top: '18%', left: '12%' },
+  emoji4: { bottom: '15%', left: '4%' },
+  emoji5: { bottom: '22%', right: '5%' },
+  emoji6: { top: '50%', left: '2%' },
+  emoji7: { top: '2%', left: '48%' },
+  emoji8: { bottom: '8%', right: '12%' },
+  emoji9: { bottom: '35%', left: '8%' },
+  emoji10: { top: '35%', right: '3%' },
   titleSection: {
     alignItems: 'center',
-    marginBottom: 20,
+    zIndex: 1,
+    marginTop: 12,
   },
   titleSectionLandscape: {
-    marginBottom: 0,
-    marginRight: 20,
-    flex: 0.35,
-    justifyContent: 'center',
+    marginTop: 6,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 35,
+    shadowColor: '#9B59B6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 3,
+    borderColor: '#E8D4F8',
+  },
+  titleTextContainer: {
+    alignItems: 'center',
+    marginHorizontal: 14,
   },
   welcomeEmoji: {
-    fontSize: 50,
-    marginBottom: 8,
+    fontSize: 40,
   },
   welcomeEmojiLandscape: {
-    fontSize: 40,
-    marginBottom: 5,
+    fontSize: 30,
   },
   title: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: '900',
     color: '#9B59B6',
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    textShadowColor: 'rgba(155, 89, 182, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
   titleLandscape: {
-    fontSize: 24,
+    fontSize: 28,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 5,
-    fontWeight: '600',
+    fontSize: 18,
+    color: '#7B68EE',
+    fontWeight: '700',
+    marginTop: 3,
   },
   subtitleLandscape: {
-    fontSize: 14,
-    marginTop: 3,
+    fontSize: 15,
+    marginTop: 2,
   },
   cardsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 15,
+    alignItems: 'center',
+    gap: 20,
+    flex: 1,
+    zIndex: 1,
   },
   cardsContainerLandscape: {
-    flex: 0.65,
-    gap: 20,
+    gap: 35,
+  },
+  cardWrapper: {
+    alignItems: 'center',
   },
   genderCard: {
-    alignItems: 'center',
-    padding: 18,
-    borderRadius: 25,
-    borderWidth: 4,
-    position: 'relative',
+    borderRadius: 28,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-    minWidth: 150,
-  },
-  genderCardLandscape: {
-    padding: 14,
-    borderRadius: 20,
-    minWidth: 140,
-    flex: 1,
-    maxWidth: 200,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+    paddingTop: 14,
+    paddingBottom: 16,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    position: 'relative',
+    borderWidth: 4,
   },
   boyCard: {
-    backgroundColor: '#E6F3FF',
-    borderColor: '#4A90D9',
+    backgroundColor: '#E3F2FD',
+    borderColor: '#42A5F5',
   },
   girlCard: {
-    backgroundColor: '#FFF0F5',
-    borderColor: '#FF69B4',
+    backgroundColor: '#FCE4EC',
+    borderColor: '#F06292',
   },
-  cardGlow: {
+  bgCircle: {
     position: 'absolute',
+    borderRadius: 100,
+    opacity: 0.4,
+  },
+  boyBgCircle1: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#90CAF9',
     top: -30,
     right: -30,
+  },
+  boyBgCircle2: {
     width: 80,
     height: 80,
-    borderRadius: 40,
-    opacity: 0.3,
+    backgroundColor: '#64B5F6',
+    bottom: 60,
+    left: -25,
   },
-  boyGlow: {
-    backgroundColor: '#4A90D9',
+  girlBgCircle1: {
+    width: 120,
+    height: 120,
+    backgroundColor: '#F8BBD9',
+    top: -30,
+    right: -30,
   },
-  girlGlow: {
-    backgroundColor: '#FF69B4',
+  girlBgCircle2: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#F48FB1',
+    bottom: 60,
+    left: -25,
   },
-  emojiContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 5,
-    marginBottom: 5,
+  cornerDecor: {
+    position: 'absolute',
+    zIndex: 2,
   },
-  cardEmoji: {
-    fontSize: 20,
+  topLeftDecor: {
+    top: 10,
+    left: 12,
   },
-  cardEmojiLandscape: {
-    fontSize: 16,
+  topRightDecor: {
+    top: 10,
+    right: 12,
   },
-  imageContainer: {
-    justifyContent: 'center',
+  cornerEmoji: {
+    fontSize: 24,
+  },
+  characterContainer: {
     alignItems: 'center',
-    marginBottom: 10,
-    borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.8)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5,
-    overflow: 'hidden',
-  },
-  boyImageBg: {
-    backgroundColor: '#B8E2FF',
-  },
-  girlImageBg: {
-    backgroundColor: '#FFD1E8',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 8,
   },
   characterImage: {
     // Dynamic sizing applied inline
   },
-  sparkles: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 4,
+  labelSection: {
+    alignItems: 'center',
+    marginTop: 6,
   },
-  sparkleEmoji: {
-    fontSize: 14,
+  labelBadge: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  boyBadge: {
+    backgroundColor: '#1E88E5',
+  },
+  girlBadge: {
+    backgroundColor: '#E91E63',
   },
   genderLabel: {
     fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 3,
+    fontWeight: '900',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   genderLabelLandscape: {
     fontSize: 16,
-    marginBottom: 2,
-  },
-  boyLabel: {
-    color: '#4A90D9',
-  },
-  girlLabel: {
-    color: '#FF69B4',
   },
   genderDescription: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '600',
+    fontSize: 15,
+    color: '#555',
+    fontWeight: '700',
   },
   genderDescriptionLandscape: {
-    fontSize: 11,
+    fontSize: 13,
+  },
+  sparklesRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 6,
+  },
+  sparkle: {
+    fontSize: 16,
+  },
+  bottomMessage: {
+    marginBottom: 12,
+    zIndex: 1,
+  },
+  bottomMessageLandscape: {
+    marginBottom: 6,
   },
   messageContainer: {
-    alignItems: 'center',
-    marginTop: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 30,
     shadowColor: '#9B59B6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: '#E8D4F8',
   },
-  messageContainerLandscape: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  message: {
-    fontSize: 14,
-    fontWeight: '700',
+  messageText: {
+    fontSize: 17,
+    fontWeight: '800',
     color: '#9B59B6',
   },
-  messageLandscape: {
-    fontSize: 12,
+  messageTextLandscape: {
+    fontSize: 14,
   },
 });
 

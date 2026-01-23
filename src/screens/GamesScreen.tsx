@@ -8,15 +8,23 @@ import {
   Dimensions,
   ScrollView,
   Image,
+  ImageBackground,
+  StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, RAINBOW_COLORS } from '../constants/colors';
 import { ALPHABETS } from '../constants/alphabets';
 import { speakFeedback, speakCelebration, stopSpeaking } from '../utils/speech';
 import { switchBackgroundMusic } from '../utils/backgroundMusic';
-import { ScreenHeader } from '../components';
 import { SCREEN_ICONS } from '../assets/images';
-import { useResponsiveLayout } from '../utils/useResponsiveLayout';
+
+// Background Image
+const GAMES_BG_IMAGE = require('../images/bgImage/GamesImageBG.png');
+
+// Colorful card backgrounds
+const CARD_BG_COLORS = [
+  '#FFE5E5', '#E5FFE8', '#E5F6FF', '#F0E5FF',
+];
 
 const { width } = Dimensions.get('window');
 
@@ -34,17 +42,16 @@ interface GamesScreenProps {
 // Game Menu Component
 const GameMenu: React.FC<{ onSelectGame: (game: GameType) => void }> = ({ onSelectGame }) => {
   const games = [
-    { id: 'match' as GameType, title: 'Match the Letter', icon: SCREEN_ICONS.target, color: COLORS.red, description: 'Match letters with pictures!' },
-    { id: 'find' as GameType, title: 'Find the Letter', icon: SCREEN_ICONS.magnifier, color: COLORS.blue, description: 'Find the correct letter!' },
-    { id: 'order' as GameType, title: 'ABC Order', icon: SCREEN_ICONS.pencil, color: COLORS.green, description: 'Put letters in order!' },
-    { id: 'quiz' as GameType, title: 'Letter Quiz', icon: SCREEN_ICONS.question, color: COLORS.purple, description: 'Answer letter questions!' },
+    { id: 'match' as GameType, title: 'Match the Letter', icon: SCREEN_ICONS.target, color: '#FF6B6B', description: 'Match letters with pictures!' },
+    { id: 'find' as GameType, title: 'Find the Letter', icon: SCREEN_ICONS.magnifier, color: '#4ECDC4', description: 'Find the correct letter!' },
+    { id: 'order' as GameType, title: 'ABC Order', icon: SCREEN_ICONS.pencil, color: '#6BCB77', description: 'Put letters in order!' },
+    { id: 'quiz' as GameType, title: 'Letter Quiz', icon: SCREEN_ICONS.question, color: '#9B59B6', description: 'Answer letter questions!' },
   ];
 
   return (
     <View style={styles.menuContainer}>
-      <View style={styles.menuTitleRow}>
-        <Image source={SCREEN_ICONS.gamepad} style={styles.menuTitleIcon} resizeMode="contain" />
-        <Text style={styles.menuTitle}>Choose a Game!</Text>
+      <View style={styles.instructionBox}>
+        <Text style={styles.instructionText}>🎮 Choose a game to play! 🎯</Text>
       </View>
       {games.map((game, index) => (
         <GameMenuItem key={game.id} game={game} index={index} onPress={() => onSelectGame(game.id)} />
@@ -59,30 +66,53 @@ const GameMenuItem: React.FC<{
   onPress: () => void;
 }> = ({ game, index, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const bgColor = CARD_BG_COLORS[index % CARD_BG_COLORS.length];
 
   useEffect(() => {
-    Animated.delay(index * 100).start(() => {
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7,
-      }).start();
-    });
-  }, [scaleAnim, index]);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      delay: index * 80,
+      tension: 80,
+      friction: 6,
+    }).start();
+
+    // Floating animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -2, duration: 1200, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [scaleAnim, floatAnim, index]);
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View style={[styles.menuItemWrapper, { transform: [{ scale: scaleAnim }, { translateY: floatAnim }] }]}>
       <TouchableOpacity
         onPress={onPress}
-        style={[styles.gameMenuItem, { backgroundColor: game.color }]}
+        style={[styles.gameMenuItem, { backgroundColor: bgColor, borderColor: game.color }]}
+        activeOpacity={0.9}
       >
-        <Image source={game.icon} style={styles.gameMenuIcon} resizeMode="contain" />
+        {/* Sparkles */}
+        <Text style={styles.sparkleLeft}>✨</Text>
+        <Text style={styles.sparkleRight}>⭐</Text>
+
+        {/* Icon with colored background */}
+        <View style={[styles.gameMenuIconContainer, { backgroundColor: game.color }]}>
+          <View style={styles.iconShine} />
+          <Image source={game.icon} style={styles.gameMenuIcon} resizeMode="contain" />
+        </View>
+
         <View style={styles.gameMenuText}>
-          <Text style={styles.gameMenuTitle}>{game.title}</Text>
+          <Text style={[styles.gameMenuTitle, { color: game.color }]}>{game.title}</Text>
           <Text style={styles.gameMenuDesc}>{game.description}</Text>
         </View>
-        <Image source={SCREEN_ICONS.play} style={styles.playIcon} resizeMode="contain" />
+
+        {/* Play button */}
+        <View style={[styles.playButton, { backgroundColor: game.color }]}>
+          <Text style={styles.playButtonText}>▶ Play</Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -655,7 +685,6 @@ const QuizGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 export const GamesScreen: React.FC<GamesScreenProps> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const [currentGame, setCurrentGame] = useState<GameType>('menu');
-  const { isLandscape } = useResponsiveLayout();
 
   // Check if we should start a specific game (from Coloring screen)
   useEffect(() => {
@@ -699,54 +728,75 @@ export const GamesScreen: React.FC<GamesScreenProps> = ({ navigation, route }) =
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
+    <ImageBackground 
+      source={GAMES_BG_IMAGE} 
+      style={styles.container}
+      resizeMode="cover"
+    >
+      <StatusBar barStyle="dark-content" />
+
       {/* Header - only show on menu */}
       {currentGame === 'menu' && (
-        <ScreenHeader
-          title="ABC Games"
-          icon={SCREEN_ICONS.gamepad}
-          onBack={() => { stopSpeaking(); navigation.goBack(); }}
-          compact={isLandscape}
-        />
+        <View style={[styles.header, { marginTop: insets.top + 10 }]}>
+          <TouchableOpacity 
+            onPress={() => { stopSpeaking(); navigation.goBack(); }} 
+            style={styles.backBtn}
+          >
+            <Text style={styles.backText}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>🔤 ABC Games</Text>
+          <View style={styles.headerSpace} />
+        </View>
       )}
 
       <ScrollView 
-        contentContainerStyle={[styles.scrollContent, isLandscape && { paddingTop: 5, paddingBottom: 20 }]} 
+        contentContainerStyle={styles.scrollContent} 
         showsVerticalScrollIndicator={false}
       >
         {renderGame()}
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E6F7FF',
   },
+  // Header styles - matching other screens
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: 15,
+    marginBottom: 10,
   },
-  backButton: {
-    padding: 8,
+  backBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   backText: {
     fontSize: 16,
-    color: COLORS.purple,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#FF6B6B',
   },
-  title: {
+  headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.purple,
+    fontWeight: '900',
+    color: '#9B59B6',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-  placeholder: {
-    width: 60,
+  headerSpace: {
+    width: 70,
   },
   scrollContent: {
     flexGrow: 1,
@@ -755,59 +805,113 @@ const styles = StyleSheet.create({
   
   // Game Menu Styles
   menuContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     paddingTop: 10,
   },
-  menuTitleRow: {
-    flexDirection: 'row',
+  instructionBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginBottom: 15,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    gap: 10,
+    borderWidth: 2,
+    borderColor: '#FFD93D',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  menuTitleIcon: {
-    width: 32,
-    height: 32,
+  instructionText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#9B59B6',
+    textAlign: 'center',
   },
-  menuTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: COLORS.purple,
+  menuItemWrapper: {
+    marginBottom: 12,
   },
   gameMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 15,
+    padding: 15,
+    borderRadius: 22,
+    borderWidth: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
     elevation: 6,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  sparkleLeft: {
+    position: 'absolute',
+    top: 8,
+    left: 10,
+    fontSize: 14,
+  },
+  sparkleRight: {
+    position: 'absolute',
+    top: 8,
+    right: 10,
+    fontSize: 14,
+  },
+  gameMenuIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  iconShine: {
+    position: 'absolute',
+    top: 5,
+    left: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   gameMenuIcon: {
-    width: 45,
-    height: 45,
-    marginRight: 15,
+    width: 28,
+    height: 28,
+    tintColor: COLORS.white,
   },
   gameMenuText: {
     flex: 1,
   },
   gameMenuTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '800',
   },
   gameMenuDesc: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
-  playIcon: {
-    width: 28,
-    height: 28,
-    tintColor: COLORS.white,
+  playButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  playButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.white,
   },
 
   // Game Common Styles

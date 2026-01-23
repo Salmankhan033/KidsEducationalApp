@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Animated,
   Image,
+  ImageBackground,
   StatusBar,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Sound from 'react-native-sound';
@@ -15,28 +17,21 @@ import { COLORS } from '../constants/colors';
 import { ALPHABET_SONGS } from '../constants/alphabets';
 import { speakSong, stopSpeaking } from '../utils/speech';
 import { SCREEN_ICONS } from '../assets/images';
-import { MuteButton } from '../components';
 import { pauseBackgroundMusic, resumeBackgroundMusic } from '../utils/backgroundMusic';
 import { useResponsiveLayout } from '../utils/useResponsiveLayout';
 
+// Background Image
+const SONGS_BG_IMAGE = require('../images/bgImage/SongsImageBG.png');
+
+const { width } = Dimensions.get('window');
+
 Sound.setCategory('Playback', true);
 
-const BG_IMAGES = {
-  sun: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2600.png' },
-  cloud: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2601.png' },
-  rainbow: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f308.png' },
-  star: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2b50.png' },
-  butterfly: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f98b.png' },
-  flower: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f33c.png' },
-  tulip: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f337.png' },
-  tree: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f333.png' },
-  bird: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f426.png' },
-  bee: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f41d.png' },
-  ladybug: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f41e.png' },
-  sparkle: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2728.png' },
-  musicNote: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3b5.png' },
-  musicalNotes: { uri: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3b6.png' },
-};
+// Card background colors for colorful UI
+const CARD_BG_COLORS = [
+  '#FFE5E5', '#E5F6FF', '#F0E5FF', '#E5FFE8', 
+  '#FFF5E5', '#FFE5F5', '#E5FFFF', '#FFF0E5',
+];
 
 interface SongCardProps {
   song: typeof ALPHABET_SONGS[0];
@@ -57,22 +52,30 @@ const SongCard: React.FC<SongCardProps> = ({
   onPress, 
   onPlay,
   onStop,
-  isLandscape,
 }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const expandAnim = useRef(new Animated.Value(0)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const bgColor = CARD_BG_COLORS[index % CARD_BG_COLORS.length];
 
   useEffect(() => {
-    Animated.delay(index * 100).start(() => {
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7,
-      }).start();
-    });
-  }, [scaleAnim, index]);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      delay: index * 50,
+      tension: 80,
+      friction: 6,
+    }).start();
+
+    // Floating animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -3, duration: 1200, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [scaleAnim, floatAnim, index]);
 
   useEffect(() => {
     Animated.timing(expandAnim, {
@@ -108,35 +111,39 @@ const SongCard: React.FC<SongCardProps> = ({
         styles.songCard,
         {
           borderColor: song.color,
-          transform: [{ scale: scaleAnim }],
+          backgroundColor: bgColor,
+          transform: [{ scale: scaleAnim }, { translateY: floatAnim }],
         },
-        isLandscape && styles.songCardLandscape,
       ]}
     >
-      <TouchableOpacity onPress={onPress} style={[styles.songTouchable, isLandscape && styles.songTouchableLandscape]}>
+      <TouchableOpacity onPress={onPress} style={styles.songTouchable}>
+        {/* Sparkle decorations */}
+        <Text style={styles.sparkleLeft}>✨</Text>
+        <Text style={styles.sparkleRight}>⭐</Text>
+        
         <Animated.View style={[
           styles.balloonContainer, 
-          isLandscape && styles.balloonContainerLandscape,
           { transform: [{ translateY: bounceAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }] }
         ]}>
-          <View style={[styles.balloon, { backgroundColor: song.color }, isLandscape && styles.balloonLandscape]}>
-            <Text style={[styles.balloonEmoji, isLandscape && styles.balloonEmojiLandscape]}>{song.emoji}</Text>
+          <View style={[styles.balloon, { backgroundColor: song.color }]}>
+            <View style={styles.balloonShine} />
+            <Text style={styles.balloonEmoji}>{song.emoji}</Text>
           </View>
           <View style={[styles.balloonTail, { borderTopColor: song.color }]} />
           <View style={styles.balloonString} />
         </Animated.View>
 
-        <View style={[styles.songHeader, isLandscape && styles.songHeaderLandscape]}>
-          <Text style={[styles.songTitle, { color: song.color }, isLandscape && styles.songTitleLandscape]}>{song.title}</Text>
-          <View style={[styles.expandBadge, { backgroundColor: song.color }, isLandscape && styles.expandBadgeLandscape]}>
-            <Text style={[styles.expandText, isLandscape && styles.expandTextLandscape]}>{isExpanded ? '▲' : '▼'}</Text>
+        <View style={styles.songHeader}>
+          <Text style={[styles.songTitle, { color: song.color }]}>{song.title}</Text>
+          <View style={[styles.expandBadge, { backgroundColor: song.color }]}>
+            <Text style={styles.expandText}>{isExpanded ? '▲' : '▼'}</Text>
           </View>
         </View>
         
         {isExpanded && (
           <Animated.View style={[styles.lyricsContainer, { opacity: expandAnim }]}>
-            <View style={[styles.lyricsBox, isLandscape && styles.lyricsBoxLandscape]}>
-              <Text style={[styles.lyricsText, isLandscape && styles.lyricsTextLandscape]}>{song.lyrics}</Text>
+            <View style={styles.lyricsBox}>
+              <Text style={styles.lyricsText}>{song.lyrics}</Text>
             </View>
             
             <TouchableOpacity 
@@ -144,21 +151,20 @@ const SongCard: React.FC<SongCardProps> = ({
               style={[
                 styles.playButton,
                 { backgroundColor: isPlaying ? '#E74C3C' : '#27AE60' },
-                isLandscape && styles.playButtonLandscape,
               ]}
             >
               <Image 
                 source={isPlaying ? SCREEN_ICONS.stop : SCREEN_ICONS.play} 
-                style={[styles.playButtonIcon, isLandscape && styles.playButtonIconLandscape]} 
+                style={styles.playButtonIcon} 
                 resizeMode="contain"
               />
-              <Text style={[styles.playButtonText, isLandscape && styles.playButtonTextLandscape]}>
-                {isPlaying ? 'Stop Singing' : 'Sing Along!'}
+              <Text style={styles.playButtonText}>
+                {isPlaying ? '⏹️ Stop' : '▶️ Sing Along!'}
               </Text>
             </TouchableOpacity>
             
-            <View style={[styles.notesRow, isLandscape && styles.notesRowLandscape]}>
-              {[0, 1, 2, 3, 4].map((i) => (
+            <View style={styles.notesRow}>
+              {['🎵', '🎶', '🎵', '🎶', '🎵'].map((note, i) => (
                 <Animated.View
                   key={i}
                   style={[
@@ -178,7 +184,7 @@ const SongCard: React.FC<SongCardProps> = ({
                     },
                   ]}
                 >
-                  <Image source={BG_IMAGES.musicNote} style={[styles.noteImage, isLandscape && styles.noteImageLandscape]} resizeMode="contain" />
+                  <Text style={styles.noteEmoji}>{note}</Text>
                 </Animated.View>
               ))}
             </View>
@@ -288,63 +294,30 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <ImageBackground 
+      source={SONGS_BG_IMAGE} 
+      style={styles.container}
+      resizeMode="cover"
+    >
       <StatusBar barStyle="dark-content" />
 
-      {/* Background */}
-      <View style={[styles.skyBackground, { height: height * 0.75 }]}>
-        <Image source={BG_IMAGES.sun} style={[styles.bgElement, { top: 20, right: 20, width: 45, height: 45 }]} />
-        <Image source={BG_IMAGES.cloud} style={[styles.bgElement, { top: 40, left: 20, width: 35, height: 35 }]} />
-        <Image source={BG_IMAGES.rainbow} style={[styles.bgElement, { top: 60, left: '30%', width: 50, height: 50 }]} />
-        <Image source={BG_IMAGES.star} style={[styles.bgElement, { top: 80, left: 50, width: 20, height: 20 }]} />
-        <Image source={BG_IMAGES.musicNote} style={[styles.bgElement, { top: 100, right: 80, width: 25, height: 25 }]} />
-        <Image source={BG_IMAGES.musicalNotes} style={[styles.bgElement, { top: 120, left: '15%', width: 25, height: 25 }]} />
-      </View>
-
-      {/* Grass */}
-      <View style={[styles.grassBackground, { height: height * 0.25 }]}>
-        <Image source={BG_IMAGES.tree} style={[styles.bgElement, { top: -20, left: 10, width: 40, height: 40 }]} />
-        <Image source={BG_IMAGES.tree} style={[styles.bgElement, { top: -15, right: 15, width: 35, height: 35 }]} />
-        <Image source={BG_IMAGES.flower} style={[styles.bgElement, { top: 15, left: 60, width: 25, height: 25 }]} />
-        <Image source={BG_IMAGES.tulip} style={[styles.bgElement, { top: 20, right: 50, width: 22, height: 22 }]} />
-      </View>
-
-      {/* Mute Button */}
-      <MuteButton 
-        style={{ 
-          position: 'absolute', 
-          right: insets.right + 15, 
-          top: insets.top + 10, 
-          zIndex: 100 
-        }} 
-        size={isLandscape ? 'small' : 'medium'} 
-      />
-
       {/* Header */}
-      <View style={[
-        styles.header, 
-        { marginTop: insets.top + 10, paddingLeft: insets.left + 15, paddingRight: insets.right + 15 },
-        isLandscape && styles.headerLandscape,
-      ]}>
-        <TouchableOpacity onPress={() => { handleStop(); navigation.goBack(); }} style={[styles.backBtn, isLandscape && styles.backBtnLandscape]}>
-          <Text style={[styles.backText, isLandscape && styles.backTextLandscape]}>← Back</Text>
+      <View style={[styles.header, { marginTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={() => { handleStop(); navigation.goBack(); }} style={styles.backBtn}>
+          <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isLandscape && styles.headerTitleLandscape]}>🎵 ABC Songs</Text>
+        <Text style={styles.headerTitle}>🎵 Songs</Text>
         <View style={styles.headerSpace} />
       </View>
 
       {/* Instructions */}
-      <View style={[styles.instructionBox, isLandscape && styles.instructionBoxLandscape]}>
-        <Text style={[styles.instructionText, isLandscape && styles.instructionTextLandscape]}>🎤 Tap a song to sing along! 🎤</Text>
+      <View style={styles.instructionBox}>
+        <Text style={styles.instructionText}>🎤 Tap a song to sing along! 🎤</Text>
       </View>
 
       {/* Songs List */}
       <ScrollView
-        contentContainerStyle={[
-          styles.songsContainer,
-          { paddingLeft: insets.left + 15, paddingRight: insets.right + 15 },
-          isLandscape && styles.songsContainerLandscape,
-        ]}
+        contentContainerStyle={styles.songsContainer}
         showsVerticalScrollIndicator={false}
       >
         {ALPHABET_SONGS.map((song, index) => (
@@ -366,77 +339,51 @@ export const SongsScreen: React.FC<SongsScreenProps> = ({ navigation }) => {
           />
         ))}
 
-        {!isLandscape && (
-          <View style={styles.footer}>
-            <View style={styles.footerIcons}>
-              <Image source={BG_IMAGES.musicNote} style={styles.footerIcon} resizeMode="contain" />
-              <Image source={BG_IMAGES.star} style={styles.footerIcon} resizeMode="contain" />
-              <Image source={BG_IMAGES.musicalNotes} style={styles.footerIcon} resizeMode="contain" />
-            </View>
-            <Text style={styles.footerSubtext}>Keep Singing & Learning!</Text>
+        <View style={styles.footer}>
+          <View style={styles.footerIcons}>
+            <Text style={styles.footerEmoji}>🎵</Text>
+            <Text style={styles.footerEmoji}>⭐</Text>
+            <Text style={styles.footerEmoji}>🎶</Text>
           </View>
-        )}
+          <Text style={styles.footerSubtext}>Keep Singing & Learning!</Text>
+        </View>
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#87CEEB',
-  },
-  skyBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#87CEEB',
-  },
-  grassBackground: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#7CCD7C',
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
-  },
-  bgElement: {
-    position: 'absolute',
-    opacity: 0.75,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    marginBottom: 6,
     zIndex: 10,
   },
-  headerLandscape: {
-    marginBottom: 6,
-  },
   backBtn: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  backBtnLandscape: {
-    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 15,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#FFE5E5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
   },
   backText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.purple,
-  },
-  backTextLandscape: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FF6B6B',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
     color: '#fff',
     textShadowColor: 'rgba(0,0,0,0.3)',
@@ -446,57 +393,63 @@ const styles = StyleSheet.create({
   headerTitleLandscape: {
     fontSize: 18,
   },
-  headerSpace: { width: 80 },
+  headerSpace: { width: 60 },
   instructionBox: {
-    backgroundColor: '#FFD700',
-    marginHorizontal: 20,
+    backgroundColor: '#FFFBEB',
+    marginHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    borderRadius: 18,
     alignItems: 'center',
-    marginBottom: 10,
-    zIndex: 10,
-  },
-  instructionBoxLandscape: {
-    paddingVertical: 6,
-    marginHorizontal: 40,
-    marginBottom: 6,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
   },
   instructionText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#333',
-  },
-  instructionTextLandscape: {
     fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
   },
   songsContainer: {
-    paddingBottom: 50,
-    paddingTop: 30,
-  },
-  songsContainerLandscape: {
-    paddingBottom: 20,
-    paddingTop: 15,
+    paddingHorizontal: 12,
+    paddingBottom: 100,
+    paddingTop: 10,
   },
   songCard: {
     backgroundColor: '#fff',
-    borderRadius: 22,
-    marginBottom: 20,
-    borderWidth: 4,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
     elevation: 6,
     overflow: 'visible',
-  },
-  songCardLandscape: {
-    borderRadius: 16,
-    marginBottom: 15,
-    borderWidth: 3,
+    position: 'relative',
   },
   songTouchable: {
-    padding: 20,
-    paddingTop: 40,
+    padding: 15,
+    paddingTop: 35,
+  },
+  sparkleLeft: {
+    position: 'absolute',
+    top: 8,
+    left: 10,
+    fontSize: 12,
+    zIndex: 10,
+  },
+  sparkleRight: {
+    position: 'absolute',
+    top: 8,
+    right: 10,
+    fontSize: 12,
+    zIndex: 10,
   },
   songTouchableLandscape: {
     padding: 15,
@@ -504,83 +457,73 @@ const styles = StyleSheet.create({
   },
   balloonContainer: {
     position: 'absolute',
-    top: -35,
-    left: 20,
+    top: -30,
+    left: 15,
     alignItems: 'center',
   },
-  balloonContainerLandscape: {
-    top: -28,
-    left: 15,
-  },
   balloon: {
-    width: 55,
-    height: 65,
-    borderRadius: 28,
+    width: 45,
+    height: 52,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+    overflow: 'hidden',
   },
-  balloonLandscape: {
-    width: 42,
-    height: 50,
-    borderRadius: 21,
+  balloonShine: {
+    position: 'absolute',
+    top: 5,
+    left: 8,
+    width: 12,
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 6,
+    transform: [{ rotate: '-25deg' }],
   },
   balloonEmoji: {
-    fontSize: 28,
-  },
-  balloonEmojiLandscape: {
     fontSize: 22,
   },
   balloonTail: {
     width: 0,
     height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderTopWidth: 12,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 10,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     marginTop: -1,
   },
   balloonString: {
     width: 2,
-    height: 20,
+    height: 15,
     backgroundColor: '#888',
   },
   songHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginLeft: 50,
-  },
-  songHeaderLandscape: {
     marginLeft: 40,
   },
   songTitle: {
     flex: 1,
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800',
   },
-  songTitleLandscape: {
-    fontSize: 16,
-  },
   expandBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  expandBadgeLandscape: {
     width: 30,
     height: 30,
     borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   expandText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -588,23 +531,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   lyricsContainer: {
-    marginTop: 20,
+    marginTop: 15,
   },
   lyricsBox: {
-    backgroundColor: '#F0F8FF',
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 3,
-    borderColor: '#E0E8F0',
-  },
-  lyricsBoxLandscape: {
+    backgroundColor: '#FFFBEB',
     borderRadius: 14,
-    padding: 12,
+    padding: 14,
     borderWidth: 2,
+    borderColor: '#FFD700',
   },
   lyricsText: {
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 14,
+    lineHeight: 22,
     color: '#333',
     textAlign: 'center',
     fontWeight: '500',
@@ -614,20 +552,20 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   playButton: {
-    marginTop: 15,
-    paddingVertical: 14,
-    paddingHorizontal: 30,
-    borderRadius: 25,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 20,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 5,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
-    borderWidth: 3,
+    gap: 8,
+    borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.3)',
   },
   playButtonLandscape: {
@@ -657,37 +595,30 @@ const styles = StyleSheet.create({
   notesRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 18,
-    paddingHorizontal: 20,
-  },
-  notesRowLandscape: {
     marginTop: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 15,
   },
-  noteImage: {
-    width: 32,
-    height: 32,
-  },
-  noteImageLandscape: {
-    width: 24,
+  noteEmoji: {
+    fontSize: 24,
     height: 24,
   },
   footer: {
     alignItems: 'center',
-    marginTop: 20,
-    paddingVertical: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 25,
-    marginHorizontal: 10,
+    marginTop: 15,
+    paddingVertical: 15,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 18,
+    marginHorizontal: 5,
+    borderWidth: 2,
+    borderColor: '#FFD700',
   },
   footerIcons: {
     flexDirection: 'row',
-    gap: 25,
-    marginBottom: 10,
+    gap: 20,
+    marginBottom: 8,
   },
-  footerIcon: {
-    width: 40,
-    height: 40,
+  footerEmoji: {
+    fontSize: 28,
   },
   footerSubtext: {
     fontSize: 18,
