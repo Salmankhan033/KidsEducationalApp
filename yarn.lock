@@ -5719,6 +5719,11 @@ react-native-tts@^4.1.1:
   resolved "https://registry.npmjs.org/react-native-tts/-/react-native-tts-4.1.1.tgz"
   integrity sha512-VL0TgCwkUWggbbFGIXAPKC3rM1baluAYtgOdgnaTm7UYsWf/y8n5VgmVB0J2Wa8qt1dldZ1cSsdQY9iz3evcAg==
 
+react-native-video@^6.19.0:
+  version "6.19.0"
+  resolved "https://registry.npmjs.org/react-native-video/-/react-native-video-6.19.0.tgz"
+  integrity sha512-JVojWIxwuH5C3RjVrF4UyuweuOH/Guq/W2xeN9zugePXZI8Xn/j6/oU94gCWHaFzkR/HGeJpqMq+l9aEHSnpIQ==
+
 react-native@*, "react-native@^0.0.0-0 || >=0.65 <1.0", react-native@>=0.57, react-native@0.82.1:
   version "0.82.1"
   resolved "https://registry.npmjs.org/react-native/-/react-native-0.82.1.tgz"

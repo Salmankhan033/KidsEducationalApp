@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, ComponentType } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,109 @@ import {
   ScrollView,
   PanResponder,
   GestureResponderEvent,
+  ActivityIndicator,
+  UIManager,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
 import { ALPHABETS, AlphabetData } from '../constants/alphabets';
 import { speak, stopSpeaking } from '../utils/speech';
 import { SCREEN_ICONS } from '../assets/images';
+
+// Check if native video component is registered
+const checkNativeVideoAvailable = (): boolean => {
+  try {
+    // Check if RCTVideo native component is registered
+    const hasRCTVideo = UIManager.getViewManagerConfig('RCTVideo') != null;
+    return hasRCTVideo;
+  } catch (e) {
+    return false;
+  }
+};
+
+// Try to import react-native-video, but handle if it's not available
+let Video: ComponentType<any> | null = null;
+let isVideoAvailable = false;
+
+try {
+  const videoModule = require('react-native-video');
+  Video = videoModule.default;
+  // Check both JS module and native module availability
+  isVideoAvailable = Video != null && checkNativeVideoAvailable();
+} catch (error) {
+  console.log('react-native-video not available:', error);
+  isVideoAvailable = false;
+}
+
+// Alphabet Videos - More section (all 26 letters). Load in try/catch so a missing asset or bundler issue doesn't crash the app.
+let ALPHABET_VIDEOS: Record<string, any> = {};
+try {
+  ALPHABET_VIDEOS = {
+    A: require('../alphabetsVideos/A.mp4'),
+    B: require('../alphabetsVideos/B.mp4'),
+    C: require('../alphabetsVideos/C.mp4'),
+    D: require('../alphabetsVideos/D.mp4'),
+    E: require('../alphabetsVideos/E.mp4'),
+    F: require('../alphabetsVideos/F.mp4'),
+    G: require('../alphabetsVideos/G.mp4'),
+    H: require('../alphabetsVideos/H.mp4'),
+    I: require('../alphabetsVideos/I.mp4'),
+    J: require('../alphabetsVideos/J.mp4'),
+    K: require('../alphabetsVideos/K.mp4'),
+    L: require('../alphabetsVideos/L.mp4'),
+    M: require('../alphabetsVideos/M.mp4'),
+    N: require('../alphabetsVideos/N.mp4'),
+    O: require('../alphabetsVideos/O.mp4'),
+    P: require('../alphabetsVideos/P.mp4'),
+    Q: require('../alphabetsVideos/Q.mp4'),
+    R: require('../alphabetsVideos/R.mp4'),
+    S: require('../alphabetsVideos/S.mp4'),
+    T: require('../alphabetsVideos/T.mp4'),
+    U: require('../alphabetsVideos/U.mp4'),
+    V: require('../alphabetsVideos/V.mp4'),
+    W: require('../alphabetsVideos/W.mp4'),
+    X: require('../alphabetsVideos/X.mp4'),
+    Y: require('../alphabetsVideos/Y.mp4'),
+    Z: require('../alphabetsVideos/Z.mp4'),
+  };
+} catch (e) {
+  console.warn('Alphabet videos could not be loaded:', e);
+}
+
+// ErrorBoundary to catch Video component errors
+interface VideoErrorBoundaryProps {
+  children: React.ReactNode;
+  onError: () => void;
+  fallback: React.ReactNode;
+}
+
+interface VideoErrorBoundaryState {
+  hasError: boolean;
+}
+
+class VideoErrorBoundary extends React.Component<VideoErrorBoundaryProps, VideoErrorBoundaryState> {
+  constructor(props: VideoErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(_error: Error): VideoErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.log('Video Error Boundary caught:', error, errorInfo);
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 // Background Image
 const ABC_BG_IMAGE = require('../images/bgImage/ABC_BGimage.png');
@@ -111,6 +208,18 @@ const Flashcard: React.FC<FlashcardProps> = ({
   const cardAnim = useRef(new Animated.Value(0)).current;
   const balloonBounce = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
+  const videoRef = useRef<any>(null);
+  
+  // Video state
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [showVideoSection, setShowVideoSection] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  
+  // Check if this alphabet has a video file
+  const hasVideoFile = ALPHABET_VIDEOS[alphabet.letter] !== undefined;
+  // Check if video playback is fully available (JS + native module)
+  const canPlayVideo = hasVideoFile && isVideoAvailable;
 
   const balloonColor = BALLOON_COLORS[index % BALLOON_COLORS.length];
   const borderColor = CARD_BORDER_COLORS[index % CARD_BORDER_COLORS.length];
@@ -120,6 +229,12 @@ const Flashcard: React.FC<FlashcardProps> = ({
   useEffect(() => {
     // Scroll to top when alphabet changes
     scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    
+    // Reset video state when alphabet changes
+    setIsVideoPlaying(false);
+    setIsVideoLoading(false);
+    setShowVideoSection(false);
+    setVideoError(false);
 
     cardAnim.setValue(0);
     Animated.spring(cardAnim, {
@@ -138,6 +253,43 @@ const Flashcard: React.FC<FlashcardProps> = ({
 
     speak(`${alphabet.letter} for ${alphabet.word1}`);
   }, [alphabet, cardAnim, balloonBounce]);
+
+  // Video control functions
+  const handlePlayVideo = () => {
+    stopSpeaking();
+    setShowVideoSection(true);
+    setIsVideoPlaying(true);
+  };
+
+  const handleVideoEnd = () => {
+    setIsVideoPlaying(false);
+  };
+
+  const handleVideoLoad = () => {
+    setIsVideoLoading(false);
+  };
+
+  const handleVideoLoadStart = () => {
+    setIsVideoLoading(true);
+  };
+
+  const togglePlayPause = () => {
+    setIsVideoPlaying(!isVideoPlaying);
+  };
+
+  const replayVideo = () => {
+    if (videoRef.current) {
+      videoRef.current.seek(0);
+      setIsVideoPlaying(true);
+    }
+  };
+
+  const handleVideoError = (error: any) => {
+    console.log('Video error:', error);
+    setVideoError(true);
+    setIsVideoLoading(false);
+    setIsVideoPlaying(false);
+  };
 
   return (
     <ScrollView 
@@ -240,6 +392,182 @@ const Flashcard: React.FC<FlashcardProps> = ({
             <Image source={SCREEN_ICONS.speaker} style={styles.speakerIconXL} />
           </TouchableOpacity>
         </View>
+
+        {/* SECTION 4: More - Video Section (Only for letters with videos) */}
+        {hasVideoFile && (
+          <View style={[styles.videoSectionCard, { borderColor: '#FF6B6B' }]}>
+            <Animated.View style={[styles.balloonContainer, { transform: [{ translateY: balloonBounce }] }]}>
+              <View style={[styles.balloon, { backgroundColor: '#FF6B6B' }]}>
+                <Text style={styles.balloonLetter}>{alphabet.letter}</Text>
+              </View>
+              <View style={[styles.balloonTail, { borderTopColor: '#FF6B6B' }]} />
+              <View style={styles.balloonString} />
+            </Animated.View>
+
+            <Text style={styles.videoSectionTitle}>🎬 More Fun!</Text>
+            <Text style={styles.videoSectionSubtitle}>Watch a video about {alphabet.letter}!</Text>
+
+            {!canPlayVideo ? (
+              /* Native video module not available */
+              <View style={styles.videoUnavailableContainer}>
+                <Text style={styles.videoUnavailableIcon}>🔧</Text>
+                <Text style={styles.videoUnavailableTitle}>Video Setup Required</Text>
+                <Text style={styles.videoUnavailableText}>
+                  To watch videos, please run:{'\n'}
+                  <Text style={styles.codeText}>cd ios && pod install</Text>
+                  {'\n'}then rebuild the app.
+                </Text>
+              </View>
+            ) : !showVideoSection ? (
+              /* Beautiful Play Button */
+              <View style={styles.playButtonContainer}>
+                <View style={styles.videoThumbnail}>
+                  <View style={styles.thumbnailLetterCircle}>
+                    <Text style={styles.thumbnailLetter}>{alphabet.letter}</Text>
+                  </View>
+                  <Text style={styles.thumbnailSubtext}>Tap to watch!</Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={handlePlayVideo}
+                  style={styles.playVideoBtn}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.playBtnCircle}>
+                    <Text style={styles.playBtnIcon}>▶</Text>
+                  </View>
+                  <Text style={styles.playBtnText}>Watch Video</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <VideoErrorBoundary
+                onError={() => setVideoError(true)}
+                fallback={
+                  <View style={styles.videoErrorContainer}>
+                    <Text style={styles.videoErrorIcon}>📹</Text>
+                    <Text style={styles.videoErrorTitle}>Video Not Available</Text>
+                    <Text style={styles.videoErrorText}>
+                      Please run 'pod install' in the ios folder to enable video playback.
+                    </Text>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        setShowVideoSection(false);
+                        setVideoError(false);
+                      }}
+                      style={styles.videoErrorBtn}
+                    >
+                      <Text style={styles.videoErrorBtnText}>Close</Text>
+                    </TouchableOpacity>
+                  </View>
+                }
+              >
+                <View style={styles.videoPlayerWrapper}>
+                  {/* Video Player Frame */}
+                  <View style={styles.videoFrame}>
+                    {/* Decorative corners */}
+                    <View style={[styles.videoCorner, styles.videoCornerTL]} />
+                    <View style={[styles.videoCorner, styles.videoCornerTR]} />
+                    <View style={[styles.videoCorner, styles.videoCornerBL]} />
+                    <View style={[styles.videoCorner, styles.videoCornerBR]} />
+                    
+                    <View style={styles.videoContainer}>
+                      {videoError ? (
+                        <View style={styles.videoErrorContainer}>
+                          <Text style={styles.videoErrorIcon}>📹</Text>
+                          <Text style={styles.videoErrorTitle}>Oops!</Text>
+                          <Text style={styles.videoErrorText}>
+                            Video couldn't load. Try again!
+                          </Text>
+                          <TouchableOpacity 
+                            onPress={() => {
+                              setShowVideoSection(false);
+                              setVideoError(false);
+                            }}
+                            style={styles.videoErrorBtn}
+                          >
+                            <Text style={styles.videoErrorBtnText}>Go Back</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <>
+                          {isVideoLoading && (
+                            <View style={styles.videoLoading}>
+                              <View style={styles.loadingSpinner}>
+                                <ActivityIndicator size="large" color="#fff" />
+                              </View>
+                              <Text style={styles.loadingText}>🎬 Loading...</Text>
+                            </View>
+                          )}
+                          {Video && (
+                            <Video
+                              ref={videoRef}
+                              source={ALPHABET_VIDEOS[alphabet.letter]}
+                              style={styles.video}
+                              resizeMode="contain"
+                              paused={!isVideoPlaying}
+                              onEnd={handleVideoEnd}
+                              onLoad={handleVideoLoad}
+                              onLoadStart={handleVideoLoadStart}
+                              onError={handleVideoError}
+                              repeat={false}
+                            />
+                          )}
+                          
+                          {/* Playback Status Badge */}
+                          <View style={[styles.playbackBadge, { backgroundColor: isVideoPlaying ? '#27AE60' : '#F39C12' }]}>
+                            <Text style={styles.playbackBadgeText}>
+                              {isVideoPlaying ? '▶ Playing' : '⏸ Paused'}
+                            </Text>
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                  
+                  {/* Fun Video Controls */}
+                  {!videoError && (
+                    <View style={styles.videoControlsWrapper}>
+                      <View style={styles.videoControlsInner}>
+                        {/* Replay Button */}
+                        <TouchableOpacity 
+                          onPress={replayVideo}
+                          style={[styles.controlBtnCircle, styles.replayBtn]}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.controlBtnEmoji}>🔄</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.controlLabel}>Again</Text>
+                      </View>
+                      
+                      <View style={styles.videoControlsInner}>
+                        {/* Play/Pause Button - Bigger */}
+                        <TouchableOpacity 
+                          onPress={togglePlayPause}
+                          style={[styles.controlBtnCircle, styles.mainPlayBtn, isVideoPlaying ? styles.pauseBtn : styles.playBtn]}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.mainPlayBtnEmoji}>{isVideoPlaying ? '⏸️' : '▶️'}</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.controlLabel}>{isVideoPlaying ? 'Pause' : 'Play'}</Text>
+                      </View>
+                      
+                      <View style={styles.videoControlsInner}>
+                        {/* Close Button */}
+                        <TouchableOpacity 
+                          onPress={() => setShowVideoSection(false)}
+                          style={[styles.controlBtnCircle, styles.closeBtn]}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.controlBtnEmoji}>✖️</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.controlLabel}>Close</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </VideoErrorBoundary>
+            )}
+          </View>
+        )}
 
         {/* Navigation */}
         <View style={styles.navigationRow}>
@@ -1763,6 +2091,347 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     tintColor: '#fff',
+  },
+  // Video Section Styles
+  videoSectionCard: {
+    width: width - 30,
+    backgroundColor: '#FFF0F3',
+    borderRadius: 25,
+    borderWidth: 5,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 15,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  videoSectionTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#FF6B6B',
+    marginTop: 25,
+    marginBottom: 5,
+    textShadowColor: 'rgba(255,107,107,0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  videoSectionSubtitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#888',
+    marginBottom: 20,
+  },
+  // Play Button Container (before video plays)
+  playButtonContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  videoThumbnail: {
+    width: '100%',
+    height: 160,
+    backgroundColor: '#FFE5EA',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    borderWidth: 3,
+    borderColor: '#FFB6C1',
+    borderStyle: 'dashed',
+  },
+  thumbnailLetterCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FF6B6B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  thumbnailLetter: {
+    fontSize: 45,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  thumbnailSubtext: {
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF6B6B',
+  },
+  playVideoBtn: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 25,
+    paddingVertical: 15,
+    borderRadius: 30,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FF8A8A',
+  },
+  playBtnCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  playBtnIcon: {
+    fontSize: 20,
+    color: '#FF6B6B',
+    marginLeft: 3,
+  },
+  playBtnText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  // Video Player Wrapper
+  videoPlayerWrapper: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  videoFrame: {
+    width: '100%',
+    borderRadius: 20,
+    backgroundColor: '#2C3E50',
+    padding: 8,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  videoCorner: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderColor: '#FFD700',
+    borderWidth: 4,
+  },
+  videoCornerTL: {
+    top: -2,
+    left: -2,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    borderTopLeftRadius: 12,
+  },
+  videoCornerTR: {
+    top: -2,
+    right: -2,
+    borderLeftWidth: 0,
+    borderBottomWidth: 0,
+    borderTopRightRadius: 12,
+  },
+  videoCornerBL: {
+    bottom: -2,
+    left: -2,
+    borderRightWidth: 0,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 12,
+  },
+  videoCornerBR: {
+    bottom: -2,
+    right: -2,
+    borderLeftWidth: 0,
+    borderTopWidth: 0,
+    borderBottomRightRadius: 12,
+  },
+  videoContainer: {
+    width: '100%',
+    borderRadius: 15,
+    overflow: 'hidden',
+    backgroundColor: '#1a1a2e',
+    position: 'relative',
+  },
+  video: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#000',
+  },
+  videoLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(26,26,46,0.95)',
+    zIndex: 10,
+  },
+  loadingSpinner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FF6B6B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  loadingText: {
+    color: '#fff',
+    marginTop: 10,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  playbackBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  playbackBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  // Video Controls
+  videoControlsWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingTop: 20,
+    paddingBottom: 5,
+    gap: 25,
+  },
+  videoControlsInner: {
+    alignItems: 'center',
+  },
+  controlBtnCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  replayBtn: {
+    backgroundColor: '#9B59B6',
+  },
+  mainPlayBtn: {
+    width: 75,
+    height: 75,
+    borderRadius: 38,
+  },
+  playBtn: {
+    backgroundColor: '#27AE60',
+  },
+  pauseBtn: {
+    backgroundColor: '#F39C12',
+  },
+  closeBtn: {
+    backgroundColor: '#E74C3C',
+  },
+  controlBtnEmoji: {
+    fontSize: 26,
+  },
+  mainPlayBtnEmoji: {
+    fontSize: 35,
+  },
+  controlLabel: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#666',
+  },
+  videoErrorContainer: {
+    padding: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF5F5',
+    borderRadius: 20,
+    margin: 10,
+  },
+  videoErrorIcon: {
+    fontSize: 60,
+    marginBottom: 15,
+  },
+  videoErrorTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#E74C3C',
+    marginBottom: 10,
+  },
+  videoErrorText: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  videoErrorBtn: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 30,
+    paddingVertical: 14,
+    borderRadius: 25,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  videoErrorBtnText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  videoUnavailableContainer: {
+    backgroundColor: '#FFF8E1',
+    padding: 20,
+    borderRadius: 15,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFE082',
+    borderStyle: 'dashed',
+  },
+  videoUnavailableIcon: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  videoUnavailableTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F57C00',
+    marginBottom: 8,
+  },
+  videoUnavailableText: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  codeText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
+    backgroundColor: '#ECEFF1',
+    color: '#37474F',
   },
   // Navigation
   navigationRow: {
